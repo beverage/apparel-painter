@@ -18,18 +18,22 @@ namespace StandPainter
     /// Live preview pushes the working colour to the real items on colour
     /// commit (wheel mouse-up, palette click, field entry), then recaches the
     /// stand — RealtimeOnly drawing shows it the same frame, on the map
-    /// itself. The window is therefore draggable (and remembers its dragged
-    /// position for the session): the whole point is seeing the stand while
-    /// picking. For the same reason clicking the map does NOT close it —
-    /// only Cancel/Esc (revert) or Accept (keep) end the session.
+    /// itself. The whole point is seeing the stand while picking, so the
+    /// window moves: an explicit drag strip along the top (the only drag
+    /// zone — whole-window drag is deliberately off so clicks stay
+    /// predictable as the UI densifies), a session-remembered position, and
+    /// map clicks that do NOT close the window. Only Cancel/Esc (revert) or
+    /// Accept (keep) end the session.
+    ///
+    /// Layout is three owned bands — drag strip / vanilla base / direct
+    /// input — with the base handed a rect that excludes ours, so neither
+    /// layout can collide however either grows (the base's own divider
+    /// errors and squeezes when short: it was sized for the glower's
+    /// 54-swatch palette).
     ///
     /// Per-drag-frame preview pushes are deliberately off by default: every
     /// unique colour mints a permanent GraphicDatabase entry (AGENTS
     /// invariant); PreviewWhileDragging exists for feel testing.
-    ///
-    /// Accept keeps the last push; any other close restores the per-item
-    /// (active, colour) snapshot taken at open — including full de-colouring
-    /// via Disable for items that were natural.
     /// </summary>
     public class Dialog_StandColorPicker : Dialog_ColorPickerBase
     {
@@ -47,6 +51,8 @@ namespace StandPainter
 
         internal const string DirectInputControlName = "StandPainter_DirectInput";
         internal const float DirectInputRowHeight = 30f;
+        internal const float DragStripHeight = 24f;
+        internal const float DragStripGap = 4f;
         internal static readonly Color BadInputTint = new Color(1f, 0.35f, 0.35f);
 
         internal static List<Color> cachedPalette;
@@ -80,8 +86,9 @@ namespace StandPainter
         /// Structure colours already need a 7th row (the base's divider then
         /// errors "Rect height was too small by 22" and squeezes its
         /// readback row into the buttons), and modded palettes grow further.
-        /// Each extra row of 9 swatches is 26px. The direct-input band is
-        /// added on top; DoWindowContents keeps it out of the base's rect.
+        /// Each extra row of 9 swatches is 26px. The drag strip and the
+        /// direct-input band are added on top; DoWindowContents keeps both
+        /// out of the base's rect.
         /// </summary>
         public override Vector2 InitialSize
         {
@@ -89,7 +96,7 @@ namespace StandPainter
             {
                 int paletteRows = Mathf.CeilToInt(Palette().Count / 9f);
                 float extraPalette = Mathf.Max(0, paletteRows - 6) * 26f;
-                return new Vector2(600f, 450f + extraPalette + DirectInputRowHeight);
+                return new Vector2(600f, 450f + extraPalette + DragStripHeight + DragStripGap + DirectInputRowHeight);
             }
         }
 
@@ -98,7 +105,10 @@ namespace StandPainter
         {
             this.stand = stand;
             this.targets = targets;
-            draggable = true;
+            // NOT draggable: with the flag off the base eats stray
+            // mousedowns, and dragging is exclusively the strip's job
+            // (LateWindowOnGUI), so clicks stay predictable as the window
+            // densifies.
             // The base closes on any outside click; with the window dragged
             // aside to watch the stand, a stray map click would silently
             // cancel-and-revert an in-progress pick. Explicit exits only.
@@ -219,13 +229,46 @@ namespace StandPainter
 
         public override void DoWindowContents(Rect inRect)
         {
-            // The base's RectDivider must never see our reserved bottom band,
-            // and we never draw into its rect — the two layouts cannot
-            // collide however either one grows.
+            // Three owned bands: strip / base / input. The base's RectDivider
+            // never sees our bands, and we never draw into its rect.
+            DrawDragStrip(new Rect(inRect.x, inRect.y, inRect.width, DragStripHeight));
             Rect baseRect = inRect;
+            baseRect.yMin += DragStripHeight + DragStripGap;
             baseRect.yMax -= DirectInputRowHeight;
             base.DoWindowContents(baseRect);
             DoDirectInputRow(new Rect(inRect.x, inRect.yMax - 26f, inRect.width, 26f));
+        }
+
+        /// <summary>
+        /// Visuals only — the actual drag is GUI.DragWindow in
+        /// LateWindowOnGUI, which runs outside the contents group (and
+        /// before the base Window eats unhandled mousedowns).
+        /// </summary>
+        internal void DrawDragStrip(Rect stripRect)
+        {
+            if (Mouse.IsOver(stripRect))
+            {
+                Widgets.DrawHighlight(stripRect);
+            }
+            else
+            {
+                Widgets.DrawLightHighlight(stripRect);
+            }
+            Color guiPrev = GUI.color;
+            GUI.color = new Color(1f, 1f, 1f, 0.55f);
+            GUI.DrawTexture(new Rect(stripRect.center.x - 9f, stripRect.center.y - 9f, 18f, 18f), TexButton.DragHash);
+            GUI.color = guiPrev;
+            TooltipHandler.TipRegionByKey(stripRect, "StandPainter_DragStripTip");
+        }
+
+        protected override void LateWindowOnGUI(Rect inRect)
+        {
+            base.LateWindowOnGUI(inRect);
+            // Window-space twin of the drawn strip: the contents group is
+            // anchored at this rect's origin, so (x, y, width, StripHeight)
+            // is the same band the user sees. DragWindow consumes the
+            // mousedown before Window's !draggable branch can eat it.
+            GUI.DragWindow(new Rect(inRect.x, inRect.y, inRect.width, DragStripHeight));
         }
 
         /// <summary>
