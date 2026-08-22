@@ -26,17 +26,17 @@ behavioural change works without saying how it was checked.
 
 ## Invariants that will not announce themselves
 
-**Every colour change to a held item must be followed by a reflection call to
-the stand's private `RecacheGraphics()`.** The stand bakes `apparel.DrawColor`
-into cached `Graphic`s at add/remove/spawn only; `Notify_ColorChanged` dirties
-the apparel, which the stand never re-reads. Miss it and the stand renders the
-old colour until reload — the bug will look like painting doesn't work at all.
+**Every colour change to a held item must be followed by
+`StandGraphics.Recache(stand)`.** The stand bakes `apparel.DrawColor` into
+cached `Graphic`s at add/remove/spawn only; `Notify_ColorChanged` dirties the
+apparel, which the stand never re-reads. Miss it and the stand renders the
+old colour until reload — the bug will look like painting doesn't work at
+all.
 
 **`CompColorable.SetColor` no-ops on exact white for undyed items.** The
 comp's private colour field defaults to white while inactive, and `SetColor`
 early-outs on equality without activating. Route every colour write through
-the `ColorForcer` helper (lands with the picker slice); never call `SetColor`
-directly.
+`ColorForcer`; never call `SetColor` directly.
 
 **`SetColor` silently clears `DesiredColor`** — the vanilla dye-queue field.
 Irrelevant while the mod is instant-only; a future dye mode must never
@@ -49,9 +49,16 @@ list. Never move the tab into an XML patch: list nodes on a shared vanilla
 def are a commons (two mods' Adds clobber each other; root DEC-032).
 
 **Do not mint graphics per drag frame.** Every unique colour creates a
-permanent `GraphicDatabase` entry plus materials, never evicted. Push live
-preview on colour commit (wheel mouse-up, palette click, hex entry), not per
-frame.
+permanent `GraphicDatabase` entry plus materials, never evicted. The picker
+pushes live preview on colour commit (wheel mouse-up, palette click, field
+entry), not per frame; `PreviewWhileDragging` (TweakValue) exists for feel
+testing and must stay off by default.
+
+**A picker target can leave the stand mid-dialog.** A pawn can take the
+outfit while the dialog is open; worn apparel renders from graphics cached on
+the pawn, which `Notify_ColorChanged` does not reach. Every write and revert
+runs through `ColorForcer`, which dirties the wearer's renderer when the item
+turns out to be worn — keep it that way.
 
 **Declare members `internal`, never `private`, and never write an
 auto-property.** Hot-swapped method bodies execute in a separate assembly and
@@ -70,4 +77,7 @@ render the row swatch-less rather than hiding it.
 | File | Job |
 |---|---|
 | `StandPainterStartup.cs` | class-keyed ITab injection onto every stand def |
-| `ITab_StandPainter.cs` | the Paint tab |
+| `ITab_StandPainter.cs` | the Paint tab — rows, swatches, whole-stand actions |
+| `Dialog_StandColorPicker.cs` | picker subclass — live preview on commit, snapshot revert on cancel |
+| `ColorForcer.cs` | comp-wart-safe colour writes, natural colour, wearer dirtying |
+| `StandGraphics.cs` | reflection bridge to the stand's private `RecacheGraphics` |
