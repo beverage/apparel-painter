@@ -42,6 +42,7 @@ namespace StandPainter
         }
 
         internal const string DirectInputControlName = "StandPainter_DirectInput";
+        internal const float DirectInputRowHeight = 30f;
         internal static readonly Color BadInputTint = new Color(1f, 0.35f, 0.35f);
 
         internal static List<Color> cachedPalette;
@@ -63,6 +64,25 @@ namespace StandPainter
         protected override Color DefaultColor => naturalDefault;
 
         protected override List<Color> PickableColors => Palette();
+
+        /// <summary>
+        /// The stock 600x450 was sized for the glower picker's 54-swatch,
+        /// 6-row palette. Ours is the live ColorDef set — vanilla's 63
+        /// Structure colours already need a 7th row (the base's divider then
+        /// errors "Rect height was too small by 22" and squeezes its
+        /// readback row into the buttons), and modded palettes grow further.
+        /// Each extra row of 9 swatches is 26px. The direct-input band is
+        /// added on top; DoWindowContents keeps it out of the base's rect.
+        /// </summary>
+        public override Vector2 InitialSize
+        {
+            get
+            {
+                int paletteRows = Mathf.CeilToInt(Palette().Count / 9f);
+                float extraPalette = Mathf.Max(0, paletteRows - 6) * 26f;
+                return new Vector2(600f, 450f + extraPalette + DirectInputRowHeight);
+            }
+        }
 
         public Dialog_StandColorPicker(Building_OutfitStand stand, List<Thing> targets)
             : base(Widgets.ColorComponents.All, Widgets.ColorComponents.All)
@@ -175,22 +195,26 @@ namespace StandPainter
 
         public override void DoWindowContents(Rect inRect)
         {
-            base.DoWindowContents(inRect);
-            DoDirectInputRow(inRect);
+            // The base's RectDivider must never see our reserved bottom band,
+            // and we never draw into its rect — the two layouts cannot
+            // collide however either one grows.
+            Rect baseRect = inRect;
+            baseRect.yMax -= DirectInputRowHeight;
+            base.DoWindowContents(baseRect);
+            DoDirectInputRow(new Rect(inRect.x, inRect.yMax - 26f, inRect.width, 26f));
         }
 
         /// <summary>
-        /// The hex / decimal-triplet field, in the free band the base layout
-        /// leaves above its bottom buttons. Unfocused it tracks the working
-        /// colour as canonical hex — a copy source for carrying a colour to
-        /// another stand; focused it is an input applied on Enter or Set.
+        /// The hex / decimal-triplet field, in its own reserved band under
+        /// the base's buttons. Unfocused it tracks the working colour as
+        /// canonical hex — a copy source for carrying a colour to another
+        /// stand; focused it is an input applied on Enter or Set.
         /// </summary>
-        internal void DoDirectInputRow(Rect inRect)
+        internal void DoDirectInputRow(Rect rowRect)
         {
-            float y = inRect.yMax - ButSize.y - 34f;
-            Rect labelRect = new Rect(inRect.x, y, 78f, 24f);
-            Rect fieldRect = new Rect(labelRect.xMax + 4f, y, 132f, 24f);
-            Rect setRect = new Rect(fieldRect.xMax + 6f, y, 44f, 24f);
+            Rect labelRect = new Rect(rowRect.x, rowRect.y, 78f, rowRect.height);
+            Rect fieldRect = new Rect(labelRect.xMax + 4f, rowRect.y, 132f, rowRect.height);
+            Rect setRect = new Rect(fieldRect.xMax + 6f, rowRect.y, 44f, rowRect.height);
 
             using (new TextBlock(TextAnchor.MiddleLeft))
             {
