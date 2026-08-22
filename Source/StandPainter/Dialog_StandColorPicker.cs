@@ -15,8 +15,9 @@ namespace StandPainter
     /// pointed at one stand-held item or the whole stand, plus surface
     /// vanilla lacks: a hex / decimal-triplet direct-input field (doubling
     /// as a copyable readout), an eyedropper on the Old colour box for
-    /// one-click revert, and a saved-swatch band — the user's own palette,
-    /// persisted in ModSettings across games.
+    /// one-click revert, a saved-swatch band (the user's own palette,
+    /// persisted in ModSettings across games), and a map-wide dropper that
+    /// sips a colour off anything on the map through the native Targeter.
     ///
     /// Live preview pushes the working colour to the real items on colour
     /// commit (wheel mouse-up, palette click, field entry), then recaches the
@@ -29,7 +30,9 @@ namespace StandPainter
     /// session, does not absorb clicks around itself (the Paint tab stays
     /// live — its swatches become eyedroppers while a picker is open, via
     /// AdoptColor), does not lock the camera, and never closes from a map
-    /// click. Only Cancel/Esc (revert) or Accept (keep) end the session.
+    /// click. Only Cancel/Esc (revert) or Accept (keep) end the session —
+    /// and while the map dropper is targeting, Esc stops the targeting
+    /// first (OnCancelKeyPressed), not the window.
     ///
     /// LAYOUT. Four owned bands — drag strip (window space) / vanilla base /
     /// saved swatches / direct input — with the base handed a rect that
@@ -94,6 +97,8 @@ namespace StandPainter
         internal Color lastPushed;
         internal bool accepted;
         internal string directInputBuffer = "";
+        internal bool mapDropperActive;
+        internal bool retargetNextFrame;
 
         protected override bool ShowDarklight => false;
 
@@ -276,9 +281,9 @@ namespace StandPainter
 
         /// <summary>
         /// Adopt a colour picked from outside the base's own controls — the
-        /// Paint tab's swatch eyedroppers, the Old colour revert dropper, or
-        /// a saved swatch. Preview then pushes on the next WindowUpdate
-        /// through the normal commit gate.
+        /// Paint tab's swatch eyedroppers, the Old colour revert dropper, a
+        /// saved swatch, or the map dropper. Preview then pushes on the next
+        /// WindowUpdate through the normal commit gate.
         /// </summary>
         internal void AdoptColor(Color c)
         {
@@ -439,6 +444,140 @@ namespace StandPainter
             }
         }
 
+        // ---- Map-wide dropper -------------------------------------------
+
+        /// <summary>
+        /// Targeting rules for the map dropper. The dropper READS — sources
+        /// need no CompColorable, any thing's DrawColor is a sample — so the
+        /// validator only demands an unfogged spawned thing, and that pawns
+        /// / corpses / stands actually carry something to list.
+        /// mapObjectTargetsMustBeAutoAttackable defaults TRUE and must be
+        /// forced off or most items and buildings refuse targeting.
+        /// </summary>
+        internal static TargetingParameters DropperTargetParams()
+        {
+            return new TargetingParameters
+            {
+                canTargetPawns = true,
+                canTargetAnimals = true,
+                canTargetHumans = true,
+                canTargetMechs = true,
+                canTargetItems = true,
+                canTargetBuildings = true,
+                canTargetCorpses = true,
+                canTargetLocations = false,
+                mapObjectTargetsMustBeAutoAttackable = false,
+                validator = DropperValidator,
+            };
+        }
+
+        internal static bool DropperValidator(TargetInfo ti)
+        {
+            if (!ti.HasThing)
+            {
+                return false;
+            }
+            Thing thing = ti.Thing;
+            if (!thing.Spawned || thing.Position.Fogged(thing.Map))
+            {
+                return false;
+            }
+            Pawn wearer = thing as Pawn ?? (thing as Corpse)?.InnerPawn;
+            if (wearer != null)
+            {
+                List<Apparel> worn = wearer.apparel?.WornApparel;
+                return worn != null && worn.Count > 0;
+            }
+            if (thing is Building_OutfitStand standTarget)
+            {
+                return standTarget.HeldItems.Count > 0;
+            }
+            return true;
+        }
+
+        /// <summary>Toggle the map dropper: native Targeter with our dropper
+        /// icon as the mouse attachment. Continuous — each sip re-arms on
+        /// the next WindowUpdate; right-click or Esc stops.</summary>
+        internal void BeginMapDropper()
+        {
+            if (mapDropperActive)
+            {
+                Find.Targeter.StopTargeting();
+                return;
+            }
+            mapDropperActive = true;
+            Find.Targeter.BeginTargeting(DropperTargetParams(), OnDropperTarget,
+                caster: null, actionWhenFinished: OnDropperFinished,
+                mouseAttachment: StandPainterTex.Dropper, requiresCastedSelected: false);
+        }
+
+        internal void OnDropperTarget(LocalTargetInfo t)
+        {
+            Thing thing = t.Thing;
+            if (thing == null)
+            {
+                return;
+            }
+            Pawn wearer = thing as Pawn ?? (thing as Corpse)?.InnerPawn;
+            if (wearer != null)
+            {
+                OfferColorMenu(wearer.apparel?.WornApparel);
+            }
+            else if (thing is Building_OutfitStand standTarget)
+            {
+                OfferColorMenu(standTarget.HeldItems);
+            }
+            else
+            {
+                AdoptColor(thing.DrawColor);
+                SoundDefOf.Click.PlayOneShotOnCamera();
+            }
+            retargetNextFrame = true;
+        }
+
+        /// <summary>One float menu entry per carried thing, hex in the
+        /// label, the thing itself as the icon. Sampling only reads
+        /// DrawColor, so nothing here requires CompColorable.</summary>
+        internal void OfferColorMenu(IEnumerable<Thing> items)
+        {
+            if (items == null)
+            {
+                return;
+            }
+            List<FloatMenuOption> options = new List<FloatMenuOption>();
+            foreach (Thing item in items)
+            {
+                Thing captured = item;
+                string label = captured.LabelShortCap + " (" + ColorUtility.ToHtmlStringRGB(captured.DrawColor) + ")";
+                options.Add(new FloatMenuOption(label, delegate
+                {
+                    AdoptColor(captured.DrawColor);
+                    SoundDefOf.Click.PlayOneShotOnCamera();
+                }, captured, Color.white));
+            }
+            if (options.Count > 0)
+            {
+                Find.WindowStack.Add(new FloatMenu(options));
+            }
+        }
+
+        internal void OnDropperFinished()
+        {
+            mapDropperActive = false;
+        }
+
+        public override void OnCancelKeyPressed()
+        {
+            // Esc while sipping stops the targeting, not the window; the
+            // next Esc reverts and closes as usual.
+            if (mapDropperActive && Find.Targeter.IsTargeting)
+            {
+                Find.Targeter.StopTargeting();
+                return;
+            }
+            base.OnCancelKeyPressed();
+        }
+
         protected override void LateWindowOnGUI(Rect inRect)
         {
             base.LateWindowOnGUI(inRect);
@@ -466,15 +605,17 @@ namespace StandPainter
 
         /// <summary>
         /// The hex / decimal-triplet field, in its own reserved band under
-        /// the base's buttons. Unfocused it tracks the working colour as
-        /// canonical hex — a copy source for carrying a colour to another
-        /// stand; focused it is an input applied on Enter or Set.
+        /// the base's buttons, plus the map-dropper toggle. Unfocused the
+        /// field tracks the working colour as canonical hex — a copy source
+        /// for carrying a colour to another stand; focused it is an input
+        /// applied on Enter or Set.
         /// </summary>
         internal void DoDirectInputRow(Rect rowRect)
         {
             Rect labelRect = new Rect(rowRect.x, rowRect.y, 78f, rowRect.height);
             Rect fieldRect = new Rect(labelRect.xMax + 4f, rowRect.y, 132f, rowRect.height);
             Rect setRect = new Rect(fieldRect.xMax + 6f, rowRect.y, 44f, rowRect.height);
+            Rect dropperRect = new Rect(setRect.xMax + 10f, rowRect.y + (rowRect.height - 24f) / 2f, 24f, 24f);
 
             using (new TextBlock(TextAnchor.MiddleLeft))
             {
@@ -513,6 +654,17 @@ namespace StandPainter
                 // Unfocus so the buffer re-canonicalises to the applied hex.
                 GUIUtility.keyboardControl = 0;
             }
+
+            if (mapDropperActive)
+            {
+                Widgets.DrawHighlight(dropperRect);
+                Widgets.DrawBox(dropperRect);
+            }
+            if (Widgets.ButtonImage(dropperRect, StandPainterTex.Dropper))
+            {
+                BeginMapDropper();
+            }
+            TooltipHandler.TipRegionByKey(dropperRect, "StandPainter_MapDropperTip");
         }
 
         internal void PushPreview()
@@ -528,6 +680,14 @@ namespace StandPainter
         public override void WindowUpdate()
         {
             base.WindowUpdate();
+            if (retargetNextFrame)
+            {
+                retargetNextFrame = false;
+                if (!Find.Targeter.IsTargeting && !mapDropperActive)
+                {
+                    BeginMapDropper();
+                }
+            }
             if (color != lastPushed && (PreviewWhileDragging || !Input.GetMouseButton(0)))
             {
                 PushPreview();
@@ -544,6 +704,10 @@ namespace StandPainter
         public override void PostClose()
         {
             base.PostClose();
+            if (mapDropperActive && Find.Targeter.IsTargeting)
+            {
+                Find.Targeter.StopTargeting();
+            }
             rememberedPosition = new Vector2(windowRect.x, windowRect.y);
             if (accepted)
             {

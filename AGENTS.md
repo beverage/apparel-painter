@@ -48,11 +48,20 @@ stage-then-instant-paint the same garment.
 **The picker is a palette, not a modal.** `absorbInputAroundWindow`,
 `preventCameraMotion`, `closeOnClickedOutside` and `draggable` are all OFF on
 purpose: the map, camera and Paint tab stay live while it is open — the
-tab-swatch eyedropper flow and the on-map preview depend on every one of
-these. Dragging is exclusively the full-width top strip's job
-(`LateWindowOnGUI`: it runs outside the contents group, in window space,
-before the base Window eats unhandled mousedowns). Do not re-modalise the
-window or hand dragging back to the `draggable` flag.
+tab-swatch eyedropper flow, the map-wide dropper and the on-map preview
+depend on every one of these. Dragging is exclusively the full-width top
+strip's job (`LateWindowOnGUI`: it runs outside the contents group, in
+window space, before the base Window eats unhandled mousedowns). Do not
+re-modalise the window or hand dragging back to the `draggable` flag.
+
+**The map dropper rides the native Targeter, and Esc ordering matters.**
+`OnCancelKeyPressed` stops targeting instead of closing the window while a
+sip is armed; each successful sip re-arms via `retargetNextFrame` on the
+next `WindowUpdate` (calling BeginTargeting from inside the targeter's own
+callback would fight its stop sequence). `TargetingParameters` trap:
+`mapObjectTargetsMustBeAutoAttackable` defaults TRUE and silently refuses
+most items/buildings — keep it forced off. The dropper READS anything
+(`DrawColor`); sources never need `CompColorable`.
 
 **The picker's height and the Old-colour dropper share one layout mirror.**
 `MirrorBaseLayout` replays `Dialog_ColorPickerBase`'s private RectDivider
