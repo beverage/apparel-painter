@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using RimWorld;
 using UnityEngine;
 using Verse;
+using Verse.Sound;
 
 namespace StandPainter
 {
@@ -10,6 +11,12 @@ namespace StandPainter
     /// icon, label, a colour swatch that opens the picker, and a reset back
     /// to natural — plus whole-stand paint/reset above the list. The weapon
     /// slot has no CompColorable and renders swatch-less (AGENTS invariant).
+    ///
+    /// While a picker window is open the swatches become EYEDROPPERS: a
+    /// dropper overlay appears and clicking a swatch adopts that item's
+    /// colour into the open picker instead of opening a new one. Works
+    /// across stands — select another stand and sip colours from its tab.
+    /// (Depends on the picker being palette-not-modal; see its class doc.)
     /// </summary>
     public class ITab_StandPainter : ITab
     {
@@ -63,6 +70,7 @@ namespace StandPainter
 
             Rect outRect = new Rect(0f, 0f, size.x, size.y).ContractedBy(Margin);
             List<Thing> colorable = ColorableItems(stand);
+            Dialog_StandColorPicker openPicker = Find.WindowStack.WindowOfType<Dialog_StandColorPicker>();
             float curY = outRect.y;
 
             bool anyActive = false;
@@ -107,12 +115,12 @@ namespace StandPainter
             float y = 0f;
             for (int i = 0; i < held.Count; i++)
             {
-                DoRow(stand, held[i], i, viewRect.width, ref y);
+                DoRow(stand, held[i], i, viewRect.width, ref y, openPicker);
             }
             Widgets.EndScrollView();
         }
 
-        internal void DoRow(Building_OutfitStand stand, Thing item, int index, float width, ref float y)
+        internal void DoRow(Building_OutfitStand stand, Thing item, int index, float width, ref float y, Dialog_StandColorPicker openPicker)
         {
             Rect rowRect = new Rect(0f, y, width, RowHeight);
             if (Mouse.IsOver(rowRect))
@@ -144,10 +152,29 @@ namespace StandPainter
             Rect swatchRect = new Rect(width - SwatchWidth - ResetWidth - 8f, y + (RowHeight - SwatchHeight) / 2f, SwatchWidth, SwatchHeight);
             Widgets.DrawBoxSolid(swatchRect, item.DrawColor);
             Widgets.DrawBox(swatchRect);
-            TooltipHandler.TipRegionByKey(swatchRect, "StandPainter_SwatchTip");
-            if (Widgets.ButtonInvisible(swatchRect))
+            if (Mouse.IsOver(swatchRect))
             {
-                OpenPicker(stand, new List<Thing> { item });
+                Widgets.DrawHighlight(swatchRect);
+            }
+            if (openPicker != null)
+            {
+                // Eyedropper mode: sip this item's colour into the open
+                // picker rather than opening a new one.
+                GUI.DrawTexture(new Rect(swatchRect.xMax - 18f, swatchRect.y + 3f, 16f, 16f), StandPainterTex.Dropper);
+                TooltipHandler.TipRegionByKey(swatchRect, "StandPainter_DropperTip");
+                if (Widgets.ButtonInvisible(swatchRect))
+                {
+                    openPicker.AdoptColor(item.DrawColor);
+                    SoundDefOf.Click.PlayOneShotOnCamera();
+                }
+            }
+            else
+            {
+                TooltipHandler.TipRegionByKey(swatchRect, "StandPainter_SwatchTip");
+                if (Widgets.ButtonInvisible(swatchRect))
+                {
+                    OpenPicker(stand, new List<Thing> { item });
+                }
             }
 
             if (comp.Active)

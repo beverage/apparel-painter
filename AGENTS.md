@@ -1,8 +1,9 @@
 # AGENTS.md
 
 A RimWorld 1.6 mod: one C# assembly that adds a Paint tab to outfit stands,
-for recolouring the apparel they hold. No art, no defs of its own beyond
-keyed strings, no Harmony patches, no scribed state.
+for recolouring the apparel they hold. No Harmony patches, no scribed state,
+no defs of its own beyond keyed strings; art is a single UI icon texture
+(`Textures/StandPainter/UI/`).
 
 | Doc | Contents |
 |---|---|
@@ -42,6 +43,15 @@ early-outs on equality without activating. Route every colour write through
 Irrelevant while the mod is instant-only; a future dye mode must never
 stage-then-instant-paint the same garment.
 
+**The picker is a palette, not a modal.** `absorbInputAroundWindow`,
+`preventCameraMotion`, `closeOnClickedOutside` and `draggable` are all OFF on
+purpose: the map, camera and Paint tab stay live while it is open — the
+tab-swatch eyedropper flow and the on-map preview depend on every one of
+these. Dragging is exclusively the full-width top strip's job
+(`LateWindowOnGUI`: it runs outside the contents group, in window space,
+before the base Window eats unhandled mousedowns). Do not re-modalise the
+window or hand dragging back to the `draggable` flag.
+
 **ITab injection is runtime, class-keyed, and touches both lists.**
 `StaticConstructorOnStartup` runs after def resolution, so appending to
 `inspectorTabs` alone does nothing — `inspectorTabsResolved` is the live
@@ -72,12 +82,20 @@ and F are taken (settings copy, settings paste, forbid) and O is reserved.
 which generally has no `CompColorable` — null-guard every comp access, and
 render the row swatch-less rather than hiding it.
 
+**A `.dds` beside a PNG silently shadows it.** Texture tools on player
+machines (FasterGameLoading et al.) write `.dds` into the mod folder through
+the symlink, with no timestamp check. `*.dds` is gitignored; when
+regenerating `Textures/StandPainter/UI/Dropper.png` (scratch script,
+`uv run --with pillow`), delete any `.dds` sibling first — the generator
+script does this itself.
+
 ## File map
 
 | File | Job |
 |---|---|
 | `StandPainterStartup.cs` | class-keyed ITab injection onto every stand def |
-| `ITab_StandPainter.cs` | the Paint tab — rows, swatches, whole-stand actions |
-| `Dialog_StandColorPicker.cs` | picker subclass — live preview on commit, snapshot revert on cancel |
+| `ITab_StandPainter.cs` | the Paint tab — rows, swatches, eyedropper mode, whole-stand actions |
+| `Dialog_StandColorPicker.cs` | picker subclass — drag strip, live preview on commit, direct input, snapshot revert |
 | `ColorForcer.cs` | comp-wart-safe colour writes, natural colour, wearer dirtying |
 | `StandGraphics.cs` | reflection bridge to the stand's private `RecacheGraphics` |
+| `StandPainterTex.cs` | startup-loaded texture handles (dropper icon) |
