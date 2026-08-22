@@ -6,4 +6,7 @@
   <StandPainter_ResetAll>Reset all</StandPainter_ResetAll>
   <StandPainter_Reset>Reset</StandPainter_Reset>
   <StandPainter_SwatchTip>Change color. The stand previews your choice as you pick; Cancel restores what was there.</StandPainter_SwatchTip>
+  <StandPainter_DirectInputLabel>Hex / RGB</StandPainter_DirectInputLabel>
+  <StandPainter_ApplyColor>Set</StandPainter_ApplyColor>
+  <StandPainter_DirectInputTip>Type a color and press Enter: hex (EFD8AE or #EFD8AE) or a decimal triplet (237,216,174 — bytes, or 0-1 floats). No alpha. When not editing, this shows the current color's hex, ready to copy to another stand.</StandPainter_DirectInputTip>
 </LanguageData>

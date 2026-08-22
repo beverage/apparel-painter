@@ -1,4 +1,6 @@
+using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using LudeonTK;
 using RimWorld;
@@ -8,8 +10,10 @@ using Verse;
 namespace StandPainter
 {
     /// <summary>
-    /// Vanilla's colour picker (HSV wheel, RGB/hex textfields, palette row)
-    /// pointed at one stand-held item or the whole stand.
+    /// Vanilla's colour picker (HSV wheel, RGB/HSV textfields, palette row)
+    /// pointed at one stand-held item or the whole stand, plus a direct-input
+    /// field vanilla lacks: hex or decimal-triplet entry, doubling as a
+    /// copyable readout of the current colour.
     ///
     /// Live preview pushes the working colour to the real items on colour
     /// commit (wheel mouse-up, palette click, field entry), then recaches the
@@ -37,6 +41,9 @@ namespace StandPainter
             internal Color color;
         }
 
+        internal const string DirectInputControlName = "StandPainter_DirectInput";
+        internal static readonly Color BadInputTint = new Color(1f, 0.35f, 0.35f);
+
         internal static List<Color> cachedPalette;
 
         internal readonly Building_OutfitStand stand;
@@ -45,6 +52,7 @@ namespace StandPainter
         internal readonly Color naturalDefault;
         internal Color lastPushed;
         internal bool accepted;
+        internal string directInputBuffer = "";
 
         protected override bool ShowDarklight => false;
 
@@ -97,6 +105,130 @@ namespace StandPainter
                     .ToList();
             }
             return cachedPalette;
+        }
+
+        /// <summary>
+        /// Accepts hex (EFD8AE, #EFD8AE; 8 digits tolerated, alpha dropped)
+        /// or a decimal triplet (237,216,174). Triplets follow the engine's
+        /// own ParseColor idiom: any component above 1 means the whole
+        /// triplet is bytes, otherwise 0–1 floats. A fourth component is
+        /// tolerated and ignored — colours here are triplets, never quads.
+        /// </summary>
+        internal static bool TryParseColorInput(string raw, out Color result)
+        {
+            result = Color.white;
+            if (raw.NullOrEmpty())
+            {
+                return false;
+            }
+            string s = raw.Trim();
+            string hex = s.StartsWith("#") ? s.Substring(1) : s;
+            if (hex.Length == 6 || hex.Length == 8)
+            {
+                bool allHex = true;
+                foreach (char c in hex)
+                {
+                    if (!Uri.IsHexDigit(c))
+                    {
+                        allHex = false;
+                        break;
+                    }
+                }
+                if (allHex)
+                {
+                    if (!ColorUtility.TryParseHtmlString("#" + hex.Substring(0, 6), out Color parsedHex))
+                    {
+                        return false;
+                    }
+                    parsedHex.a = 1f;
+                    result = parsedHex;
+                    return true;
+                }
+            }
+            string[] parts = s.Split(new[] { ',', ' ', ';' }, StringSplitOptions.RemoveEmptyEntries);
+            if (parts.Length != 3 && parts.Length != 4)
+            {
+                return false;
+            }
+            float[] vals = new float[3];
+            bool bytes = false;
+            for (int i = 0; i < 3; i++)
+            {
+                if (!float.TryParse(parts[i], NumberStyles.Float, CultureInfo.InvariantCulture, out float v))
+                {
+                    return false;
+                }
+                if (v < 0f || v > 255f)
+                {
+                    return false;
+                }
+                if (v > 1f)
+                {
+                    bytes = true;
+                }
+                vals[i] = v;
+            }
+            float scale = bytes ? 255f : 1f;
+            result = new Color(vals[0] / scale, vals[1] / scale, vals[2] / scale, 1f);
+            return true;
+        }
+
+        public override void DoWindowContents(Rect inRect)
+        {
+            base.DoWindowContents(inRect);
+            DoDirectInputRow(inRect);
+        }
+
+        /// <summary>
+        /// The hex / decimal-triplet field, in the free band the base layout
+        /// leaves above its bottom buttons. Unfocused it tracks the working
+        /// colour as canonical hex — a copy source for carrying a colour to
+        /// another stand; focused it is an input applied on Enter or Set.
+        /// </summary>
+        internal void DoDirectInputRow(Rect inRect)
+        {
+            float y = inRect.yMax - ButSize.y - 34f;
+            Rect labelRect = new Rect(inRect.x, y, 78f, 24f);
+            Rect fieldRect = new Rect(labelRect.xMax + 4f, y, 132f, 24f);
+            Rect setRect = new Rect(fieldRect.xMax + 6f, y, 44f, 24f);
+
+            using (new TextBlock(TextAnchor.MiddleLeft))
+            {
+                Widgets.Label(labelRect, "StandPainter_DirectInputLabel".Translate());
+            }
+
+            bool focused = GUI.GetNameOfFocusedControl() == DirectInputControlName;
+            if (!focused)
+            {
+                directInputBuffer = ColorUtility.ToHtmlStringRGB(color);
+            }
+            bool parseOk = TryParseColorInput(directInputBuffer, out Color parsed);
+
+            bool enterPressed = focused
+                && Event.current.type == EventType.KeyDown
+                && (Event.current.keyCode == KeyCode.Return || Event.current.keyCode == KeyCode.KeypadEnter);
+            if (enterPressed)
+            {
+                Event.current.Use();
+            }
+
+            GUI.SetNextControlName(DirectInputControlName);
+            Color guiPrev = GUI.color;
+            if (focused && !parseOk && !directInputBuffer.NullOrEmpty())
+            {
+                GUI.color = BadInputTint;
+            }
+            directInputBuffer = Widgets.TextField(fieldRect, directInputBuffer);
+            GUI.color = guiPrev;
+            TooltipHandler.TipRegionByKey(fieldRect, "StandPainter_DirectInputTip");
+
+            bool setClicked = Widgets.ButtonText(setRect, "StandPainter_ApplyColor".Translate(), active: parseOk);
+            if ((enterPressed || setClicked) && parseOk)
+            {
+                color = parsed;
+                // Unfocus so the buffer re-canonicalises to the applied hex.
+                GUIUtility.keyboardControl = 0;
+            }
         }
 
         internal void PushPreview()
