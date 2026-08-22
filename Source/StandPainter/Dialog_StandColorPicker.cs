@@ -18,14 +18,18 @@ namespace StandPainter
     /// Live preview pushes the working colour to the real items on colour
     /// commit (wheel mouse-up, palette click, field entry), then recaches the
     /// stand — RealtimeOnly drawing shows it the same frame, on the map
-    /// itself. Per-drag-frame pushes are deliberately off by default: every
+    /// itself. The window is therefore draggable (and remembers its dragged
+    /// position for the session): the whole point is seeing the stand while
+    /// picking. For the same reason clicking the map does NOT close it —
+    /// only Cancel/Esc (revert) or Accept (keep) end the session.
+    ///
+    /// Per-drag-frame preview pushes are deliberately off by default: every
     /// unique colour mints a permanent GraphicDatabase entry (AGENTS
     /// invariant); PreviewWhileDragging exists for feel testing.
     ///
-    /// Accept keeps the last push; any other close (Cancel, Esc, click
-    /// outside) restores the per-item (active, colour) snapshot taken at
-    /// open — including full de-colouring via Disable for items that were
-    /// natural.
+    /// Accept keeps the last push; any other close restores the per-item
+    /// (active, colour) snapshot taken at open — including full de-colouring
+    /// via Disable for items that were natural.
     /// </summary>
     public class Dialog_StandColorPicker : Dialog_ColorPickerBase
     {
@@ -46,6 +50,11 @@ namespace StandPainter
         internal static readonly Color BadInputTint = new Color(1f, 0.35f, 0.35f);
 
         internal static List<Color> cachedPalette;
+
+        /// <summary>Where the user last dragged the window, reused for every
+        /// open this session so repositioning survives a six-stand painting
+        /// pass. Position only — size stays computed from the palette.</summary>
+        internal static Vector2? rememberedPosition;
 
         internal readonly Building_OutfitStand stand;
         internal readonly List<Thing> targets;
@@ -89,6 +98,11 @@ namespace StandPainter
         {
             this.stand = stand;
             this.targets = targets;
+            draggable = true;
+            // The base closes on any outside click; with the window dragged
+            // aside to watch the stand, a stray map click would silently
+            // cancel-and-revert an in-progress pick. Explicit exits only.
+            closeOnClickedOutside = false;
             foreach (Thing item in targets)
             {
                 CompColorable comp = item.TryGetComp<CompColorable>();
@@ -107,6 +121,16 @@ namespace StandPainter
             color = targets.Count > 0 ? targets[0].DrawColor : Color.white;
             oldColor = color;
             lastPushed = color;
+        }
+
+        protected override void SetInitialSizeAndPosition()
+        {
+            base.SetInitialSizeAndPosition();
+            if (rememberedPosition.HasValue)
+            {
+                windowRect.x = Mathf.Clamp(rememberedPosition.Value.x, 0f, UI.screenWidth - windowRect.width);
+                windowRect.y = Mathf.Clamp(rememberedPosition.Value.y, 0f, UI.screenHeight - windowRect.height);
+            }
         }
 
         /// <summary>
@@ -284,6 +308,7 @@ namespace StandPainter
         public override void PostClose()
         {
             base.PostClose();
+            rememberedPosition = new Vector2(windowRect.x, windowRect.y);
             if (accepted)
             {
                 return;
