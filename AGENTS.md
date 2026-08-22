@@ -1,9 +1,11 @@
 # AGENTS.md
 
 A RimWorld 1.6 mod: one C# assembly that adds a Paint tab to outfit stands,
-for recolouring the apparel they hold. No Harmony patches, no scribed state,
-no defs of its own beyond keyed strings; art is a single UI icon texture
-(`Textures/StandPainter/UI/`).
+for recolouring the apparel they hold. No Harmony patches, no defs of its own
+beyond keyed strings; art is a single UI icon texture
+(`Textures/StandPainter/UI/`). **No save-file state** — item colours are
+vanilla `CompColorable` scribing and the user's saved swatches live in
+ModSettings (config file), so mid-save removal stays clean.
 
 | Doc | Contents |
 |---|---|
@@ -108,3 +110,4 @@ script does this itself.
 | `ColorForcer.cs` | comp-wart-safe colour writes, natural colour, wearer dirtying |
 | `StandGraphics.cs` | reflection bridge to the stand's private `RecacheGraphics` |
 | `StandPainterTex.cs` | startup-loaded texture handles (dropper icon) |
+| `StandPainterMod.cs` | Mod entry + ModSettings (saved swatches; no settings window on purpose) |

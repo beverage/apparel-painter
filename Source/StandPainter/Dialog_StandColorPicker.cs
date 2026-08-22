@@ -14,8 +14,9 @@ namespace StandPainter
     /// Vanilla's colour picker (HSV wheel, RGB/HSV textfields, palette row)
     /// pointed at one stand-held item or the whole stand, plus surface
     /// vanilla lacks: a hex / decimal-triplet direct-input field (doubling
-    /// as a copyable readout) and an eyedropper on the Old colour box for
-    /// one-click revert to the colour the picker opened with.
+    /// as a copyable readout), an eyedropper on the Old colour box for
+    /// one-click revert, and a saved-swatch band — the user's own palette,
+    /// persisted in ModSettings across games.
     ///
     /// Live preview pushes the working colour to the real items on colour
     /// commit (wheel mouse-up, palette click, field entry), then recaches the
@@ -30,16 +31,17 @@ namespace StandPainter
     /// AdoptColor), does not lock the camera, and never closes from a map
     /// click. Only Cancel/Esc (revert) or Accept (keep) end the session.
     ///
-    /// LAYOUT. Three owned bands — drag strip (window space) / vanilla base
-    /// / direct input — with the base handed a rect that excludes ours.
-    /// The base's internal layout (private statics, RectDivider maths) is
-    /// additionally MIRRORED in MirrorBaseLayout: the window height derives
-    /// from it (no magic 450 — the base's divider errors and squeezes when
-    /// starved; it was sized for the glower's 54-swatch palette, and our
-    /// palette is the live ColorDef set), and the Old colour box position
-    /// falls out of the same maths for the revert dropper. Mirror and size
-    /// share one formula, so vanilla layout drift shows up as a misplaced
-    /// overlay after a game update, never an error — re-verify there.
+    /// LAYOUT. Four owned bands — drag strip (window space) / vanilla base /
+    /// saved swatches / direct input — with the base handed a rect that
+    /// excludes ours. The base's internal layout (private statics,
+    /// RectDivider maths) is additionally MIRRORED in MirrorBaseLayout: the
+    /// window height derives from it (no magic 450 — the base's divider
+    /// errors and squeezes when starved; it was sized for the glower's
+    /// 54-swatch palette, and our palette is the live ColorDef set), and the
+    /// Old colour box position falls out of the same maths for the revert
+    /// dropper. Mirror and size share one formula, so vanilla layout drift
+    /// shows up as a misplaced overlay after a game update, never an error —
+    /// re-verify there.
     ///
     /// Per-drag-frame preview pushes are deliberately off by default: every
     /// unique colour mints a permanent GraphicDatabase entry (AGENTS
@@ -73,6 +75,9 @@ namespace StandPainter
         internal const float DirectInputRowHeight = 30f;
         internal const float DragStripHeight = 24f;
         internal const float DragStripGap = 4f;
+        internal const float SwatchCell = 26f;
+        internal const float SwatchPitch = 28f;
+        internal const int MaxSwatches = 60;
         internal static readonly Color BadInputTint = new Color(1f, 0.35f, 0.35f);
 
         internal static List<Color> cachedPalette;
@@ -100,13 +105,15 @@ namespace StandPainter
 
         protected override List<Color> PickableColors => Palette();
 
+        internal static int SwatchesPerRow => Mathf.Max(1, Mathf.FloorToInt((600f - 36f + (SwatchPitch - SwatchCell)) / SwatchPitch));
+
         public override Vector2 InitialSize
         {
             get
             {
                 MirroredLayout m = MirrorBaseLayout(600f - Margin * 2f);
                 float stripOverhang = Mathf.Max(0f, DragStripHeight - Margin) + DragStripGap;
-                return new Vector2(600f, m.requiredHeight + Margin * 2f + stripOverhang + DirectInputRowHeight);
+                return new Vector2(600f, m.requiredHeight + Margin * 2f + stripOverhang + SwatchBandHeight() + DirectInputRowHeight);
             }
         }
 
@@ -269,9 +276,9 @@ namespace StandPainter
 
         /// <summary>
         /// Adopt a colour picked from outside the base's own controls — the
-        /// Paint tab's swatch eyedroppers, or the Old colour revert dropper.
-        /// Preview then pushes on the next WindowUpdate through the normal
-        /// commit gate.
+        /// Paint tab's swatch eyedroppers, the Old colour revert dropper, or
+        /// a saved swatch. Preview then pushes on the next WindowUpdate
+        /// through the normal commit gate.
         /// </summary>
         internal void AdoptColor(Color c)
         {
@@ -283,16 +290,115 @@ namespace StandPainter
 
         public override void DoWindowContents(Rect inRect)
         {
-            // Three owned bands: strip (window space, LateWindowOnGUI) /
-            // base / input. The base's RectDivider never sees our bands, and
-            // we never draw into its rect — except the Old colour dropper,
-            // which overlays the base's readback box via the layout mirror.
+            // Four owned bands: strip (window space, LateWindowOnGUI) / base
+            // / saved swatches / input. The base's RectDivider never sees our
+            // bands, and we never draw into its rect — except the Old colour
+            // dropper, which overlays the base's readback via the layout
+            // mirror.
+            float swatchBandHeight = SwatchBandHeight();
             Rect baseRect = inRect;
             baseRect.yMin += Mathf.Max(0f, DragStripHeight - Margin) + DragStripGap;
-            baseRect.yMax -= DirectInputRowHeight;
+            baseRect.yMax -= DirectInputRowHeight + swatchBandHeight;
             base.DoWindowContents(baseRect);
             DoOldColorDropper(baseRect);
+            DoSavedSwatchBand(new Rect(inRect.x, inRect.yMax - DirectInputRowHeight - swatchBandHeight + DragStripGap, inRect.width, swatchBandHeight - DragStripGap));
             DoDirectInputRow(new Rect(inRect.x, inRect.yMax - 26f, inRect.width, 26f));
+        }
+
+        /// <summary>Band height for the saved swatches + the save cell,
+        /// grid-wrapped. Feeds both InitialSize and the band rect.</summary>
+        internal static float SwatchBandHeight()
+        {
+            int cells = StandPainterMod.Settings.savedSwatches.Count + 1;
+            int rows = Mathf.CeilToInt((float)cells / SwatchesPerRow);
+            return rows * SwatchPitch + DragStripGap;
+        }
+
+        /// <summary>
+        /// The user's own palette: vanilla ColorBox cells (native look,
+        /// selection border, click sound). Click adopts; right-click removes
+        /// via float menu; the trailing + cell saves the current colour.
+        /// Persisted in ModSettings — shared across saves and sessions.
+        /// </summary>
+        internal void DoSavedSwatchBand(Rect band)
+        {
+            List<Color> saved = StandPainterMod.Settings.savedSwatches;
+            int perRow = SwatchesPerRow;
+            for (int i = 0; i <= saved.Count; i++)
+            {
+                int row = i / perRow;
+                int col = i % perRow;
+                Rect cell = new Rect(band.x + col * SwatchPitch, band.y + row * SwatchPitch, SwatchCell, SwatchCell);
+                if (i == saved.Count)
+                {
+                    if (Widgets.ButtonImage(cell.ContractedBy(4f), TexButton.Plus))
+                    {
+                        SaveCurrentSwatch();
+                    }
+                    TooltipHandler.TipRegionByKey(cell, "StandPainter_SaveSwatchTip");
+                    continue;
+                }
+                Color swatch = saved[i];
+                if (Event.current.type == EventType.MouseDown && Event.current.button == 1 && cell.Contains(Event.current.mousePosition))
+                {
+                    Event.current.Use();
+                    int index = i;
+                    Find.WindowStack.Add(new FloatMenu(new List<FloatMenuOption>
+                    {
+                        new FloatMenuOption("StandPainter_RemoveSwatch".Translate(), delegate { RemoveSwatch(index); }),
+                    }));
+                }
+                TooltipHandler.TipRegion(cell, "StandPainter_SavedSwatchTip".Translate(ColorUtility.ToHtmlStringRGB(swatch)));
+                if (Widgets.ColorBox(cell, ref color, swatch))
+                {
+                    AdoptColor(color);
+                }
+            }
+        }
+
+        internal void SaveCurrentSwatch()
+        {
+            List<Color> saved = StandPainterMod.Settings.savedSwatches;
+            foreach (Color existing in saved)
+            {
+                if (existing.IndistinguishableFrom(color))
+                {
+                    Messages.Message("StandPainter_SwatchExists".Translate(), MessageTypeDefOf.RejectInput, historical: false);
+                    return;
+                }
+            }
+            if (saved.Count >= MaxSwatches)
+            {
+                Messages.Message("StandPainter_SwatchLimit".Translate(MaxSwatches), MessageTypeDefOf.RejectInput, historical: false);
+                return;
+            }
+            Color toSave = color;
+            toSave.a = 1f;
+            saved.Add(toSave);
+            StandPainterMod.Instance.WriteSettings();
+            RefreshWindowHeight();
+            SoundDefOf.Tick_High.PlayOneShotOnCamera();
+        }
+
+        internal void RemoveSwatch(int index)
+        {
+            List<Color> saved = StandPainterMod.Settings.savedSwatches;
+            if (index < 0 || index >= saved.Count)
+            {
+                return;
+            }
+            saved.RemoveAt(index);
+            StandPainterMod.Instance.WriteSettings();
+            RefreshWindowHeight();
+        }
+
+        /// <summary>Grow or shrink the open window in place when the swatch
+        /// band wraps to a different row count — position kept, size
+        /// recomputed from the same formula as InitialSize.</summary>
+        internal void RefreshWindowHeight()
+        {
+            Vector2 size = InitialSize;
+            windowRect = new Rect(windowRect.x, windowRect.y, size.x, size.y);
         }
 
         /// <summary>

@@ -12,4 +12,9 @@
   <StandPainter_DragStripTip>Drag to move this window.</StandPainter_DragStripTip>
   <StandPainter_DropperTip>Pick up this item's color into the open color picker.</StandPainter_DropperTip>
   <StandPainter_OldColorTip>Pick the old color back up — the color this picker opened with.</StandPainter_OldColorTip>
+  <StandPainter_SaveSwatchTip>Save the current color as a swatch. Saved swatches persist across games.</StandPainter_SaveSwatchTip>
+  <StandPainter_SavedSwatchTip>{0}. Click to use, right-click to remove.</StandPainter_SavedSwatchTip>
+  <StandPainter_RemoveSwatch>Remove swatch</StandPainter_RemoveSwatch>
+  <StandPainter_SwatchExists>That color is already saved.</StandPainter_SwatchExists>
+  <StandPainter_SwatchLimit>Swatch limit reached ({0}).</StandPainter_SwatchLimit>
 </LanguageData>
