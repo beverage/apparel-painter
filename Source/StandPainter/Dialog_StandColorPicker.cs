@@ -6,14 +6,16 @@ using LudeonTK;
 using RimWorld;
 using UnityEngine;
 using Verse;
+using Verse.Sound;
 
 namespace StandPainter
 {
     /// <summary>
     /// Vanilla's colour picker (HSV wheel, RGB/HSV textfields, palette row)
-    /// pointed at one stand-held item or the whole stand, plus a direct-input
-    /// field vanilla lacks: hex or decimal-triplet entry, doubling as a
-    /// copyable readout of the current colour.
+    /// pointed at one stand-held item or the whole stand, plus surface
+    /// vanilla lacks: a hex / decimal-triplet direct-input field (doubling
+    /// as a copyable readout) and an eyedropper on the Old colour box for
+    /// one-click revert to the colour the picker opened with.
     ///
     /// Live preview pushes the working colour to the real items on colour
     /// commit (wheel mouse-up, palette click, field entry), then recaches the
@@ -28,11 +30,16 @@ namespace StandPainter
     /// AdoptColor), does not lock the camera, and never closes from a map
     /// click. Only Cancel/Esc (revert) or Accept (keep) end the session.
     ///
-    /// Layout is three owned bands — drag strip (window space) / vanilla
-    /// base / direct input — with the base handed a rect that excludes ours,
-    /// so neither layout can collide however either grows (the base's own
-    /// divider errors and squeezes when short: it was sized for the glower's
-    /// 54-swatch palette).
+    /// LAYOUT. Three owned bands — drag strip (window space) / vanilla base
+    /// / direct input — with the base handed a rect that excludes ours.
+    /// The base's internal layout (private statics, RectDivider maths) is
+    /// additionally MIRRORED in MirrorBaseLayout: the window height derives
+    /// from it (no magic 450 — the base's divider errors and squeezes when
+    /// starved; it was sized for the glower's 54-swatch palette, and our
+    /// palette is the live ColorDef set), and the Old colour box position
+    /// falls out of the same maths for the revert dropper. Mirror and size
+    /// share one formula, so vanilla layout drift shows up as a misplaced
+    /// overlay after a game update, never an error — re-verify there.
     ///
     /// Per-drag-frame preview pushes are deliberately off by default: every
     /// unique colour mints a permanent GraphicDatabase entry (AGENTS
@@ -50,6 +57,16 @@ namespace StandPainter
             internal Thing item;
             internal bool wasActive;
             internal Color color;
+        }
+
+        /// <summary>Mirror of Dialog_ColorPickerBase.DoWindowContents'
+        /// consumption, in baseRect-relative terms. All row constants are
+        /// verified against the 1.6.4871 decompile.</summary>
+        internal struct MirroredLayout
+        {
+            internal float readbackTopOffset;
+            internal float readbackHeight;
+            internal float requiredHeight;
         }
 
         internal const string DirectInputControlName = "StandPainter_DirectInput";
@@ -83,24 +100,13 @@ namespace StandPainter
 
         protected override List<Color> PickableColors => Palette();
 
-        /// <summary>
-        /// The stock 600x450 was sized for the glower picker's 54-swatch,
-        /// 6-row palette. Ours is the live ColorDef set — vanilla's 63
-        /// Structure colours already need a 7th row (the base's divider then
-        /// errors "Rect height was too small by 22" and squeezes its
-        /// readback row into the buttons), and modded palettes grow further.
-        /// Each extra row of 9 swatches is 26px. The drag strip rides mostly
-        /// in the window margin (only its overhang costs height); the
-        /// direct-input band is added in full.
-        /// </summary>
         public override Vector2 InitialSize
         {
             get
             {
-                int paletteRows = Mathf.CeilToInt(Palette().Count / 9f);
-                float extraPalette = Mathf.Max(0, paletteRows - 6) * 26f;
+                MirroredLayout m = MirrorBaseLayout(600f - Margin * 2f);
                 float stripOverhang = Mathf.Max(0f, DragStripHeight - Margin) + DragStripGap;
-                return new Vector2(600f, 450f + extraPalette + stripOverhang + DirectInputRowHeight);
+                return new Vector2(600f, m.requiredHeight + Margin * 2f + stripOverhang + DirectInputRowHeight);
             }
         }
 
@@ -162,6 +168,37 @@ namespace StandPainter
                     .ToList();
             }
             return cachedPalette;
+        }
+
+        /// <summary>
+        /// Replays the base's layout arithmetic. Sources (1.6.4871):
+        /// RectDivider default margin (17,4); zero-rows cost 4; the palette
+        /// column is 250 wide → 9 swatches per 28px row, ColorSelector's out
+        /// height is (rows-1)*28+26 and ColorPalette adds its 26px
+        /// default-swatch row + 2; ColorTextfields aggregates six 30px rows
+        /// at 4 margin (204); the block row is max(palette, 128, fields);
+        /// then 10 + 34 (temperature, allocated even when hidden) + 26
+        /// mystery row, each +4 margin; bottom-justified buttons ButSize.y+4
+        /// and a zero-row. Readback gets the remainder — here exactly two
+        /// Text.LineHeight rows + margin + 6 slack, because requiredHeight
+        /// is built from the same terms.
+        /// </summary>
+        internal static MirroredLayout MirrorBaseLayout(float baseWidth)
+        {
+            float headerHeight;
+            using (new TextBlock(GameFont.Medium))
+            {
+                headerHeight = Text.CalcHeight("ChooseAColor".Translate().CapitalizeFirst(), baseWidth);
+            }
+            int paletteRows = Mathf.CeilToInt(Palette().Count / 9f);
+            float paletteHeight = (paletteRows - 1) * 28f + 26f + 26f + 2f;
+            float fieldsHeight = 6f * 34f;
+            float blockHeight = Mathf.Max(paletteHeight, Mathf.Max(128f, fieldsHeight));
+            MirroredLayout result = default;
+            result.readbackTopOffset = headerHeight + 4f + 4f + blockHeight + 4f + 14f + 38f + 30f;
+            result.readbackHeight = Text.LineHeight * 2f + 4f + 6f;
+            result.requiredHeight = result.readbackTopOffset + result.readbackHeight + 4f + ButSize.y + 4f;
+            return result;
         }
 
         /// <summary>
@@ -231,9 +268,10 @@ namespace StandPainter
         }
 
         /// <summary>
-        /// Adopt a colour picked from outside this window — the Paint tab's
-        /// swatch eyedroppers. Preview then pushes on the next WindowUpdate
-        /// through the normal commit gate.
+        /// Adopt a colour picked from outside the base's own controls — the
+        /// Paint tab's swatch eyedroppers, or the Old colour revert dropper.
+        /// Preview then pushes on the next WindowUpdate through the normal
+        /// commit gate.
         /// </summary>
         internal void AdoptColor(Color c)
         {
@@ -247,13 +285,52 @@ namespace StandPainter
         {
             // Three owned bands: strip (window space, LateWindowOnGUI) /
             // base / input. The base's RectDivider never sees our bands, and
-            // we never draw into its rect. In here only the strip's overhang
-            // below the window margin is reserved.
+            // we never draw into its rect — except the Old colour dropper,
+            // which overlays the base's readback box via the layout mirror.
             Rect baseRect = inRect;
             baseRect.yMin += Mathf.Max(0f, DragStripHeight - Margin) + DragStripGap;
             baseRect.yMax -= DirectInputRowHeight;
             base.DoWindowContents(baseRect);
+            DoOldColorDropper(baseRect);
             DoDirectInputRow(new Rect(inRect.x, inRect.yMax - 26f, inRect.width, 26f));
+        }
+
+        /// <summary>
+        /// The revert eyedropper, overlaid on the base's Old colour box —
+        /// located by replaying ColorReadback's own arithmetic on the
+        /// mirrored readback rect. Skips silently when the numbers stop
+        /// adding up (a vanilla layout change), rather than misdrawing.
+        /// </summary>
+        internal void DoOldColorDropper(Rect baseRect)
+        {
+            MirroredLayout m = MirrorBaseLayout(baseRect.width);
+            float readbackTop = baseRect.y + m.readbackTopOffset;
+            if (readbackTop + m.readbackHeight > baseRect.yMax - ButSize.y - 4f + 1f)
+            {
+                return;
+            }
+            Rect readback = new Rect(baseRect.x, readbackTop, baseRect.width, m.readbackHeight);
+            readback.SplitVertically((readback.width - 26f) / 2f, out Rect left, out _);
+            float lineHeight = Text.LineHeight;
+            float labelWidth = Mathf.Max(100f,
+                Mathf.Max("CurrentColor".Translate().CapitalizeFirst().GetWidthCached(),
+                    "OldColor".Translate().CapitalizeFirst().GetWidthCached()));
+            Rect oldBox = new Rect(left.x + labelWidth + 17f, readbackTop + lineHeight + 4f, left.width - labelWidth - 17f, lineHeight);
+            if (oldBox.width < 40f || oldBox.yMax > baseRect.yMax)
+            {
+                return;
+            }
+            GUI.DrawTexture(new Rect(oldBox.xMax - 18f, oldBox.y + (oldBox.height - 16f) / 2f, 16f, 16f), StandPainterTex.Dropper);
+            if (Mouse.IsOver(oldBox))
+            {
+                Widgets.DrawHighlight(oldBox);
+            }
+            TooltipHandler.TipRegionByKey(oldBox, "StandPainter_OldColorTip");
+            if (Widgets.ButtonInvisible(oldBox))
+            {
+                AdoptColor(oldColor);
+                SoundDefOf.Click.PlayOneShotOnCamera();
+            }
         }
 
         protected override void LateWindowOnGUI(Rect inRect)

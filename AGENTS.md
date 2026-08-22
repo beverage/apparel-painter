@@ -52,6 +52,15 @@ these. Dragging is exclusively the full-width top strip's job
 before the base Window eats unhandled mousedowns). Do not re-modalise the
 window or hand dragging back to the `draggable` flag.
 
+**The picker's height and the Old-colour dropper share one layout mirror.**
+`MirrorBaseLayout` replays `Dialog_ColorPickerBase`'s private RectDivider
+arithmetic (constants verified against the 1.6.4871 decompile); the window's
+`InitialSize` derives from it AND the revert dropper overlays the base's
+readback box through it. Because size and mirror share the formula, a
+vanilla layout change shows up as a **misplaced overlay, never an error** —
+after any game update, open the picker and eyeball the Old-colour dropper
+before trusting the rest of the layout.
+
 **ITab injection is runtime, class-keyed, and touches both lists.**
 `StaticConstructorOnStartup` runs after def resolution, so appending to
 `inspectorTabs` alone does nothing — `inspectorTabsResolved` is the live
