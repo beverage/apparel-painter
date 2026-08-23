@@ -511,6 +511,51 @@ namespace StandPainter
                 mouseAttachment: StandPainterTex.Dropper, requiresCastedSelected: false);
         }
 
+        /// <summary>
+        /// The targeter hands over ONE thing per click, picked by draw
+        /// altitude — and wall-mounted cell-mates (heaters, lamps) draw high
+        /// and outrank a stand sharing their cell (found in play: two bar
+        /// stands each sharing a cell with a wall heater sipped the heater).
+        /// Re-resolve over the whole clicked cell with the dropper's own
+        /// priority: dressed pawn/corpse, then a stocked stand, then
+        /// whatever was actually clicked.
+        /// </summary>
+        internal static Thing PreferredSourceAt(Thing clicked)
+        {
+            if (!clicked.Spawned)
+            {
+                return clicked;
+            }
+            Thing wearer = null;
+            Thing stocked = null;
+            List<Thing> cell = clicked.Position.GetThingList(clicked.Map);
+            foreach (Thing th in cell)
+            {
+                if (th is Pawn p)
+                {
+                    if (wearer == null && (p.apparel?.WornApparel?.Count ?? 0) > 0)
+                    {
+                        wearer = th;
+                    }
+                }
+                else if (th is Corpse c)
+                {
+                    if (wearer == null && (c.InnerPawn?.apparel?.WornApparel?.Count ?? 0) > 0)
+                    {
+                        wearer = th;
+                    }
+                }
+                else if (th is Building_OutfitStand s)
+                {
+                    if (stocked == null && s.HeldItems.Count > 0)
+                    {
+                        stocked = th;
+                    }
+                }
+            }
+            return wearer ?? stocked ?? clicked;
+        }
+
         internal void OnDropperTarget(LocalTargetInfo t)
         {
             Thing thing = t.Thing;
@@ -518,6 +563,7 @@ namespace StandPainter
             {
                 return;
             }
+            thing = PreferredSourceAt(thing);
             Pawn wearer = thing as Pawn ?? (thing as Corpse)?.InnerPawn;
             if (wearer != null)
             {
