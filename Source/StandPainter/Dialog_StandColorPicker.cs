@@ -633,15 +633,16 @@ namespace StandPainter
             // GUI.DragWindow consumes the mousedown before Window's
             // !draggable branch can eat it.
             Rect stripRect = new Rect(0f, 0f, windowRect.width, DragStripHeight);
+            // Vanilla's title-band chrome reads as a real bar edge to edge;
+            // the old LightHighlight wash was too faint to register as one.
+            Widgets.DrawTitleBG(stripRect);
             if (Mouse.IsOver(stripRect))
             {
                 Widgets.DrawHighlight(stripRect);
             }
-            else
-            {
-                Widgets.DrawLightHighlight(stripRect);
-            }
             Color guiPrev = GUI.color;
+            GUI.color = new Color(0f, 0f, 0f, 0.4f);
+            Widgets.DrawLineHorizontal(0f, stripRect.yMax - 1f, stripRect.width);
             GUI.color = new Color(1f, 1f, 1f, 0.55f);
             GUI.DrawTexture(new Rect(stripRect.center.x - 9f, stripRect.center.y - 9f, 18f, 18f), TexButton.DragHash);
             GUI.color = guiPrev;
