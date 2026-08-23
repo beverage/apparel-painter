@@ -19,5 +19,9 @@ namespace StandPainter
         {
             options = optionsInOrder;
         }
+
+        /// <summary>Harness visibility into the protected list — the order
+        /// assertion is the whole reason this class exists.</summary>
+        internal List<FloatMenuOption> OptionsForTest => options;
     }
 }

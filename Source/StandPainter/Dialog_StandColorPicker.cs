@@ -641,26 +641,7 @@ namespace StandPainter
             surfaceThings.SortBy(th => -(int)th.def.altitudeLayer);
 
             TerrainDef terrain = cell.GetTerrain(map);
-            ColorDef paint = map.terrainGrid.ColorAt(cell);
-            Color floorColor;
-            bool floorPainted;
-            if (paint != null)
-            {
-                floorColor = paint.color;
-                floorPainted = true;
-            }
-            else if (DubsInterop.TryGetFloorColor(map, cell, out Color dubsColor))
-            {
-                // Dubs Paint Shop keeps floor paint in its own map
-                // component, invisible to TerrainGrid.ColorAt.
-                floorColor = dubsColor;
-                floorPainted = true;
-            }
-            else
-            {
-                floorColor = terrain.DrawColor;
-                floorPainted = false;
-            }
+            Color floorColor = ResolveFloorColor(map, cell, out bool floorPainted);
 
             if (apparelItems.Count == 0 && surfaceThings.Count == 0)
             {
@@ -702,6 +683,26 @@ namespace StandPainter
             // FloatMenu_Ordered: plain FloatMenu sorts disabled options (the
             // headers) to the bottom, un-categorising everything.
             Find.WindowStack.Add(new FloatMenu_Ordered(options));
+        }
+
+        /// <summary>Floor colour at the cell: vanilla terrain paint, then
+        /// Dubs Paint Shop's grid (invisible to TerrainGrid.ColorAt), then
+        /// the terrain def's own colour. Factored out for the harness.</summary>
+        internal static Color ResolveFloorColor(Map map, IntVec3 cell, out bool painted)
+        {
+            ColorDef paint = map.terrainGrid.ColorAt(cell);
+            if (paint != null)
+            {
+                painted = true;
+                return paint.color;
+            }
+            if (DubsInterop.TryGetFloorColor(map, cell, out Color dubsColor))
+            {
+                painted = true;
+                return dubsColor;
+            }
+            painted = false;
+            return cell.GetTerrain(map).DrawColor;
         }
 
         /// <summary>One menu entry per colour source: the thing's own icon,
@@ -856,6 +857,13 @@ namespace StandPainter
             this.color = color;
             PushPreview();
             accepted = true;
+        }
+
+        /// <summary>The Accept button's state half, exposed for the harness —
+        /// the override itself must keep the base's protected level.</summary>
+        internal void AcceptForTest(Color c)
+        {
+            SaveColor(c);
         }
 
         public override void PostClose()

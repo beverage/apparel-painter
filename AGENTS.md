@@ -22,10 +22,31 @@ output path and Debug carries the ECR hot-reload rig beside our dll. The
 Release build sweeps those artifacts; only `Assemblies/StandPainter.dll` is
 ever tracked.
 
-There is no test suite. Behaviour is verified in game on a clean Release
-restart; UI layout may be iterated through ECR hot-swap on a Debug build, but
-anything touching colour state is confirmed after a restart. Do not claim a
-behavioural change works without saying how it was checked.
+The regression harness is the release gate:
+
+```bash
+devtools/run-harness.sh          # three-mod list, ~20s, no hands
+devtools/run-harness.sh --full   # your live mod list — covers the Dubs
+                                 # interop case; run before a release
+```
+
+It launches an ISOLATED game instance (-savedatafolder; it refuses to touch
+a running one), fires the mod's real entry points at spawned fixtures, and
+exits non-zero on any failure. It asserts every engine surface this mod
+leans on: the reflection bridges' private members (tripwires for game
+updates), tab injection across the loaded modlist, the ColorForcer warts,
+the stand's graphic-cache bake + recache, the picker's headless
+preview/cancel/accept state machine, floor resolution across vanilla and
+Dubs paint (including Dubs' unscribed-alpha reload wart), parse table,
+layout-mirror consistency, and FloatMenu ordering. The harness BODY ships
+in every configuration so the gate asserts the literal dll players install;
+the launch flag is its only door — there is no debug-menu entry.
+
+UI FEEL is still verified by eye in game (drag strip, overlays landing on
+the base's pixels, targeting affordances) — the harness proves state, not
+pixels. UI layout may be iterated through ECR hot-swap on a Debug build,
+but anything touching colour state is confirmed on a clean Release restart.
+Do not claim a behavioural change works without saying how it was checked.
 
 ## Invariants that will not announce themselves
 
