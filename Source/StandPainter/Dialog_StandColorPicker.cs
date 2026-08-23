@@ -20,7 +20,7 @@ namespace StandPainter
     /// the Old colour box for one-click revert, a saved-swatch band (the
     /// user's own palette, persisted in ModSettings across games), and a
     /// map-wide dropper that sips a colour off anything through the native
-    /// Targeter.
+    /// Targeter — the whole cell stack, floors included (BL-080).
     ///
     /// The R/G/B textfields are OURS, not the base's: the base is
     /// constructed with ColorComponents.None (its ColorTextfields
@@ -536,11 +536,12 @@ namespace StandPainter
 
         /// <summary>
         /// Targeting rules for the map dropper. The dropper READS — sources
-        /// need no CompColorable, any thing's DrawColor is a sample — so the
-        /// validator only demands an unfogged spawned thing, and that pawns
-        /// / corpses / stands actually carry something to list.
-        /// mapObjectTargetsMustBeAutoAttackable defaults TRUE and must be
-        /// forced off or most items and buildings refuse targeting.
+        /// need no CompColorable — so anything spawned and unfogged is fair
+        /// game, and bare cells are targetable too: terrain is a colour
+        /// source (BL-080) and clicking empty floor is the natural
+        /// sample-the-carpet gesture. mapObjectTargetsMustBeAutoAttackable
+        /// defaults TRUE and must be forced off or most items and buildings
+        /// refuse targeting.
         /// </summary>
         internal static TargetingParameters DropperTargetParams()
         {
@@ -553,7 +554,7 @@ namespace StandPainter
                 canTargetItems = true,
                 canTargetBuildings = true,
                 canTargetCorpses = true,
-                canTargetLocations = false,
+                canTargetLocations = true,
                 mapObjectTargetsMustBeAutoAttackable = false,
                 validator = DropperValidator,
             };
@@ -561,26 +562,15 @@ namespace StandPainter
 
         internal static bool DropperValidator(TargetInfo ti)
         {
-            if (!ti.HasThing)
+            if (ti.Map == null)
             {
                 return false;
             }
-            Thing thing = ti.Thing;
-            if (!thing.Spawned || thing.Position.Fogged(thing.Map))
+            if (ti.HasThing)
             {
-                return false;
+                return ti.Thing.Spawned && !ti.Thing.Position.Fogged(ti.Thing.Map);
             }
-            Pawn wearer = thing as Pawn ?? (thing as Corpse)?.InnerPawn;
-            if (wearer != null)
-            {
-                List<Apparel> worn = wearer.apparel?.WornApparel;
-                return worn != null && worn.Count > 0;
-            }
-            if (thing is Building_OutfitStand standTarget)
-            {
-                return standTarget.HeldItems.Count > 0;
-            }
-            return true;
+            return ti.Cell.InBounds(ti.Map) && !ti.Cell.Fogged(ti.Map);
         }
 
         /// <summary>Toggle the map dropper: native Targeter with our dropper
@@ -600,99 +590,111 @@ namespace StandPainter
         }
 
         /// <summary>
-        /// The targeter hands over ONE thing per click, picked by draw
-        /// altitude — and wall-mounted cell-mates (heaters, lamps) draw high
-        /// and outrank a stand sharing their cell (found in play: two bar
-        /// stands each sharing a cell with a wall heater sipped the heater).
-        /// Re-resolve over the whole clicked cell with the dropper's own
-        /// priority: dressed pawn/corpse, then a stocked stand, then
-        /// whatever was actually clicked.
+        /// Every colour source at the clicked cell, categorised (BL-080).
+        /// The targeter's own per-click pick follows draw altitude — a
+        /// wall-mounted heater outranks the stand sharing its cell, an
+        /// overlay building outranks the carpet, and terrain is not a thing
+        /// at all — so the click resolves to the CELL, and a menu offers
+        /// the whole stack: worn/held apparel, then things (topmost first),
+        /// then the floor. A cell with only its floor skips the menu and
+        /// sips instantly — the bare-carpet gesture stays one click.
         /// </summary>
-        internal static Thing PreferredSourceAt(Thing clicked)
-        {
-            if (!clicked.Spawned)
-            {
-                return clicked;
-            }
-            Thing wearer = null;
-            Thing stocked = null;
-            List<Thing> cell = clicked.Position.GetThingList(clicked.Map);
-            foreach (Thing th in cell)
-            {
-                if (th is Pawn p)
-                {
-                    if (wearer == null && (p.apparel?.WornApparel?.Count ?? 0) > 0)
-                    {
-                        wearer = th;
-                    }
-                }
-                else if (th is Corpse c)
-                {
-                    if (wearer == null && (c.InnerPawn?.apparel?.WornApparel?.Count ?? 0) > 0)
-                    {
-                        wearer = th;
-                    }
-                }
-                else if (th is Building_OutfitStand s)
-                {
-                    if (stocked == null && s.HeldItems.Count > 0)
-                    {
-                        stocked = th;
-                    }
-                }
-            }
-            return wearer ?? stocked ?? clicked;
-        }
-
         internal void OnDropperTarget(LocalTargetInfo t)
         {
-            Thing thing = t.Thing;
-            if (thing == null)
+            retargetNextFrame = true;
+            Map map = Find.CurrentMap;
+            if (map == null || !t.Cell.InBounds(map))
             {
                 return;
             }
-            thing = PreferredSourceAt(thing);
-            Pawn wearer = thing as Pawn ?? (thing as Corpse)?.InnerPawn;
-            if (wearer != null)
+            IntVec3 cell = t.Cell;
+
+            List<Thing> apparelItems = new List<Thing>();
+            List<Thing> surfaceThings = new List<Thing>();
+            List<Thing> cellThings = cell.GetThingList(map);
+            foreach (Thing th in cellThings)
             {
-                OfferColorMenu(wearer.apparel?.WornApparel);
+                Pawn wearer = th as Pawn ?? (th as Corpse)?.InnerPawn;
+                if (wearer != null)
+                {
+                    List<Apparel> worn = wearer.apparel?.WornApparel;
+                    if (worn != null)
+                    {
+                        apparelItems.AddRange(worn);
+                    }
+                    continue;
+                }
+                if (th is Building_OutfitStand standTarget)
+                {
+                    // Held items go under Apparel; the stand itself still
+                    // lists under Things — its stuff colour is a real
+                    // sample too.
+                    apparelItems.AddRange(standTarget.HeldItems);
+                }
+                ThingCategory category = th.def.category;
+                if (category == ThingCategory.Building || category == ThingCategory.Item || category == ThingCategory.Plant)
+                {
+                    surfaceThings.Add(th);
+                }
             }
-            else if (thing is Building_OutfitStand standTarget)
+            // Visual stack order: topmost first.
+            surfaceThings.SortBy(th => -(int)th.def.altitudeLayer);
+
+            TerrainDef terrain = cell.GetTerrain(map);
+            ColorDef paint = map.terrainGrid.ColorAt(cell);
+            Color floorColor = paint?.color ?? terrain.DrawColor;
+
+            if (apparelItems.Count == 0 && surfaceThings.Count == 0)
             {
-                OfferColorMenu(standTarget.HeldItems);
-            }
-            else
-            {
-                AdoptColor(thing.DrawColor);
+                AdoptColor(floorColor);
                 SoundDefOf.Click.PlayOneShotOnCamera();
+                return;
             }
-            retargetNextFrame = true;
+
+            List<FloatMenuOption> options = new List<FloatMenuOption>();
+            if (apparelItems.Count > 0)
+            {
+                options.Add(new FloatMenuOption("StandPainter_HeaderApparel".Translate(), null));
+                foreach (Thing item in apparelItems)
+                {
+                    options.Add(SourceOption(item));
+                }
+            }
+            if (surfaceThings.Count > 0)
+            {
+                options.Add(new FloatMenuOption("StandPainter_HeaderThings".Translate(), null));
+                foreach (Thing th in surfaceThings)
+                {
+                    options.Add(SourceOption(th));
+                }
+            }
+            options.Add(new FloatMenuOption("StandPainter_HeaderFloor".Translate(), null));
+            string floorLabel = terrain.LabelCap;
+            if (paint != null)
+            {
+                floorLabel += ", " + "StandPainter_Painted".Translate();
+            }
+            floorLabel += " (" + ColorUtility.ToHtmlStringRGB(floorColor) + ")";
+            Color capturedFloor = floorColor;
+            options.Add(new FloatMenuOption(floorLabel, delegate
+            {
+                AdoptColor(capturedFloor);
+                SoundDefOf.Click.PlayOneShotOnCamera();
+            }, BaseContent.WhiteTex, capturedFloor));
+            Find.WindowStack.Add(new FloatMenu(options));
         }
 
-        /// <summary>One float menu entry per carried thing, hex in the
-        /// label, the thing itself as the icon. Sampling only reads
-        /// DrawColor, so nothing here requires CompColorable.</summary>
-        internal void OfferColorMenu(IEnumerable<Thing> items)
+        /// <summary>One menu entry per colour source: the thing's own icon,
+        /// hex in the label. Sampling only reads DrawColor — no
+        /// CompColorable required.</summary>
+        internal FloatMenuOption SourceOption(Thing source)
         {
-            if (items == null)
+            string label = source.LabelShortCap + " (" + ColorUtility.ToHtmlStringRGB(source.DrawColor) + ")";
+            return new FloatMenuOption(label, delegate
             {
-                return;
-            }
-            List<FloatMenuOption> options = new List<FloatMenuOption>();
-            foreach (Thing item in items)
-            {
-                Thing captured = item;
-                string label = captured.LabelShortCap + " (" + ColorUtility.ToHtmlStringRGB(captured.DrawColor) + ")";
-                options.Add(new FloatMenuOption(label, delegate
-                {
-                    AdoptColor(captured.DrawColor);
-                    SoundDefOf.Click.PlayOneShotOnCamera();
-                }, captured, Color.white));
-            }
-            if (options.Count > 0)
-            {
-                Find.WindowStack.Add(new FloatMenu(options));
-            }
+                AdoptColor(source.DrawColor);
+                SoundDefOf.Click.PlayOneShotOnCamera();
+            }, source, Color.white);
         }
 
         internal void OnDropperFinished()

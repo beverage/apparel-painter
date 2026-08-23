@@ -17,6 +17,10 @@
   <StandPainter_RemoveSwatch>Remove swatch</StandPainter_RemoveSwatch>
   <StandPainter_SwatchExists>That color is already saved.</StandPainter_SwatchExists>
   <StandPainter_SwatchLimit>Swatch limit reached ({0}).</StandPainter_SwatchLimit>
-  <StandPainter_MapDropperTip>Sample a color from the map: click any item, building, pawn or corpse. Pawns and stands list what they wear or hold. Keeps sampling until you right-click or press Escape; click this button again to stop.</StandPainter_MapDropperTip>
+  <StandPainter_MapDropperTip>Sample a color from the map: click anything — furniture, items, pawns, corpses, floors. A cell with several sources lists the whole stack, floor included; bare floor samples instantly. Keeps sampling until you right-click or press Escape; click this button again to stop.</StandPainter_MapDropperTip>
   <StandPainter_BrightnessTip>Brightness. The wheel picks hue and saturation; this slider is the third axis.</StandPainter_BrightnessTip>
+  <StandPainter_HeaderApparel>— Apparel —</StandPainter_HeaderApparel>
+  <StandPainter_HeaderThings>— Things here —</StandPainter_HeaderThings>
+  <StandPainter_HeaderFloor>— Floor —</StandPainter_HeaderFloor>
+  <StandPainter_Painted>painted</StandPainter_Painted>
 </LanguageData>

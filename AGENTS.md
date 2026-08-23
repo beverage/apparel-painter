@@ -63,6 +63,16 @@ callback would fight its stop sequence). `TargetingParameters` trap:
 most items/buildings — keep it forced off. The dropper READS anything
 (`DrawColor`); sources never need `CompColorable`.
 
+**Dropper clicks resolve to the CELL, never the targeter's pick.** The
+targeter chooses one thing per click by draw altitude — a wall-mounted
+heater outranks the stand sharing its cell, an overlay building outranks
+the carpet, and terrain is not a thing at all (it lives in `terrainGrid`;
+painted colour via `ColorAt`, else `TerrainDef.DrawColor`). So
+`OnDropperTarget` reads the whole cell and menus the stack — apparel /
+things (topmost first) / floor — with bare cells targetable
+(`canTargetLocations`) for the instant carpet sip. Do not reintroduce a
+single-thing resolution.
+
 **The picker's height and the Old-colour dropper share one layout mirror.**
 `MirrorBaseLayout` replays `Dialog_ColorPickerBase`'s private RectDivider
 arithmetic (constants verified against the 1.6.4871 decompile); the window's
