@@ -642,7 +642,25 @@ namespace StandPainter
 
             TerrainDef terrain = cell.GetTerrain(map);
             ColorDef paint = map.terrainGrid.ColorAt(cell);
-            Color floorColor = paint?.color ?? terrain.DrawColor;
+            Color floorColor;
+            bool floorPainted;
+            if (paint != null)
+            {
+                floorColor = paint.color;
+                floorPainted = true;
+            }
+            else if (DubsInterop.TryGetFloorColor(map, cell, out Color dubsColor))
+            {
+                // Dubs Paint Shop keeps floor paint in its own map
+                // component, invisible to TerrainGrid.ColorAt.
+                floorColor = dubsColor;
+                floorPainted = true;
+            }
+            else
+            {
+                floorColor = terrain.DrawColor;
+                floorPainted = false;
+            }
 
             if (apparelItems.Count == 0 && surfaceThings.Count == 0)
             {
@@ -670,7 +688,7 @@ namespace StandPainter
             }
             options.Add(new FloatMenuOption("StandPainter_HeaderFloor".Translate(), null));
             string floorLabel = terrain.LabelCap;
-            if (paint != null)
+            if (floorPainted)
             {
                 floorLabel += ", " + "StandPainter_Painted".Translate();
             }

@@ -131,3 +131,4 @@ script does this itself.
 | `StandPainterTex.cs` | startup-loaded texture handles (dropper icon) |
 | `StandPainterMod.cs` | Mod entry + ModSettings (saved swatches; no settings window on purpose) |
 | `FloatMenu_Ordered.cs` | FloatMenu that keeps caller order — disabled header rows sink to the bottom in the stock one |
+| `DubsInterop.cs` | reflection read of Dubs Paint Shop's floor-paint map component (its paint is invisible to TerrainGrid.ColorAt) |
