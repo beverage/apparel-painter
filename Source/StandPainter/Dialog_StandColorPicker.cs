@@ -20,9 +20,16 @@ namespace StandPainter
     /// the Old colour box for one-click revert, a saved-swatch band (the
     /// user's own palette, persisted in ModSettings across games), and a
     /// map-wide dropper that sips a colour off anything through the native
-    /// Targeter. Textfields are trimmed to R/G/B — vanilla's own picker (the
-    /// glower) shows Hue|Sat only, and the HSV numerics were noise once the
-    /// wheel + slider cover that space analogically.
+    /// Targeter.
+    ///
+    /// The R/G/B textfields are OURS, not the base's: the base is
+    /// constructed with ColorComponents.None (its ColorTextfields
+    /// early-returns but still reserves the 125px left column, so the wheel
+    /// keeps its place), and we draw the same Widgets.ColorTextfields —
+    /// same "colorTextfields" control names, so the base's Tab cycling
+    /// still works — vertically centred on the wheel's centreline. Vanilla's
+    /// own picker (the glower) shows Hue|Sat only; the HSV numerics were
+    /// noise once the wheel + slider cover that space analogically.
     ///
     /// Live preview pushes the working colour to the real items on colour
     /// commit (wheel mouse-up, palette click, field entry), then recaches the
@@ -43,11 +50,13 @@ namespace StandPainter
     /// saved swatches / direct input — with the base handed a rect that
     /// excludes ours. The base's internal layout (private statics,
     /// RectDivider maths) is additionally MIRRORED in MirrorBaseLayout: the
-    /// window height derives from it, the Old colour box position falls out
-    /// of the same maths for the revert dropper, and the brightness slider
-    /// anchors under the mirrored wheel rect. Mirror and size share one
-    /// formula, so vanilla layout drift shows up as a misplaced overlay
-    /// after a game update, never an error — re-verify there.
+    /// window height derives from it, and the overlays (Old colour dropper,
+    /// brightness slider, our RGB fields) anchor through it. The block row
+    /// consumes the 125px fields column + 17 margin at left and the 250px
+    /// palette + 17 at right; the wheel centres in the REMAINING MIDDLE
+    /// COLUMN — not the window. Mirror and size share one formula, so
+    /// vanilla layout drift shows up as a misplaced overlay after a game
+    /// update, never an error — re-verify there.
     ///
     /// Per-drag-frame preview pushes are deliberately off by default: every
     /// unique colour mints a permanent GraphicDatabase entry (AGENTS
@@ -74,6 +83,7 @@ namespace StandPainter
         {
             internal float blockTopOffset;
             internal float blockHeight;
+            internal float wheelCenterXOffset;
             internal float readbackTopOffset;
             internal float readbackHeight;
             internal float requiredHeight;
@@ -86,11 +96,10 @@ namespace StandPainter
         internal const float SwatchCell = 26f;
         internal const float SwatchPitch = 28f;
         internal const int MaxSwatches = 60;
+        internal const float WheelSize = 128f;
 
-        /// <summary>R/G/B rows in the base's textfield column — must match
-        /// the ColorComponents passed to the base ctor (the mirror's
-        /// fieldsHeight is derived from it).</summary>
-        internal const int VisibleFieldRows = 3;
+        internal static readonly Widgets.ColorComponents RgbComponents =
+            Widgets.ColorComponents.Red | Widgets.ColorComponents.Green | Widgets.ColorComponents.Blue;
 
         internal static readonly Color BadInputTint = new Color(1f, 0.35f, 0.35f);
 
@@ -110,6 +119,14 @@ namespace StandPainter
         internal string directInputBuffer = "";
         internal bool mapDropperActive;
         internal bool retargetNextFrame;
+
+        // Our own ColorTextfields state — the same trio the base keeps for
+        // its (now blanked) fields. previousFocused is sampled on Layout
+        // events, mirroring the base's commit-on-unfocus semantics. Not
+        // readonly: Widgets.ColorTextfields takes the array by ref.
+        internal string[] textfieldBuffers = new string[6];
+        internal Color textfieldColorBuffer;
+        internal string previousFocusedControlName;
 
         protected override bool ShowDarklight => false;
 
@@ -134,9 +151,7 @@ namespace StandPainter
         }
 
         public Dialog_StandColorPicker(Building_OutfitStand stand, List<Thing> targets)
-            : base(
-                Widgets.ColorComponents.Red | Widgets.ColorComponents.Green | Widgets.ColorComponents.Blue,
-                Widgets.ColorComponents.Red | Widgets.ColorComponents.Green | Widgets.ColorComponents.Blue)
+            : base(Widgets.ColorComponents.None, Widgets.ColorComponents.None)
         {
             this.stand = stand;
             this.targets = targets;
@@ -196,18 +211,20 @@ namespace StandPainter
         }
 
         /// <summary>
-        /// Replays the base's layout arithmetic. Sources (1.6.4871):
+        /// Replays the base's layout arithmetic. Sources (1.6.4871,
+        /// Dialog_ColorPickerBase.DoWindowContents read in full):
         /// RectDivider default margin (17,4); zero-rows cost 4; the palette
         /// column is 250 wide → 9 swatches per 28px row, ColorSelector's out
         /// height is (rows-1)*28+26 and ColorPalette adds its 26px
-        /// default-swatch row + 2; ColorTextfields aggregates one 30px row
-        /// per visible component at 4 margin (VisibleFieldRows × 34); the
-        /// block row is max(palette, 128, fields); then 10 + 34
-        /// (temperature, allocated even when hidden) + 26 mystery row, each
-        /// +4 margin; bottom-justified buttons ButSize.y+4 and a zero-row.
-        /// Readback gets the remainder — here exactly two Text.LineHeight
-        /// rows + margin + 6 slack, because requiredHeight is built from the
-        /// same terms.
+        /// default-swatch row + 2; the base's ColorTextfields is blanked
+        /// (None) so its aggregator stays (125, 0) — the block row still
+        /// consumes that 125+17 at left and 250+17 at right, and the wheel
+        /// centres in the remaining middle column; the block row is
+        /// max(palette, 128); then 10 + 34 (temperature, allocated even when
+        /// hidden) + 26 mystery row, each +4 margin; bottom-justified
+        /// buttons ButSize.y+4 and a zero-row. Readback gets the remainder —
+        /// here exactly two Text.LineHeight rows + margin + 6 slack, because
+        /// requiredHeight is built from the same terms.
         /// </summary>
         internal static MirroredLayout MirrorBaseLayout(float baseWidth)
         {
@@ -218,11 +235,13 @@ namespace StandPainter
             }
             int paletteRows = Mathf.CeilToInt(Palette().Count / 9f);
             float paletteHeight = (paletteRows - 1) * 28f + 26f + 26f + 2f;
-            float fieldsHeight = VisibleFieldRows * 34f;
-            float blockHeight = Mathf.Max(paletteHeight, Mathf.Max(128f, fieldsHeight));
+            float blockHeight = Mathf.Max(paletteHeight, 128f);
+            float middleLeft = 125f + 17f;
+            float middleRight = baseWidth - 250f - 17f;
             MirroredLayout result = default;
             result.blockTopOffset = headerHeight + 4f + 4f;
             result.blockHeight = blockHeight;
+            result.wheelCenterXOffset = middleLeft + (middleRight - middleLeft) / 2f;
             result.readbackTopOffset = result.blockTopOffset + blockHeight + 4f + 14f + 38f + 30f;
             result.readbackHeight = Text.LineHeight * 2f + 4f + 6f;
             result.requiredHeight = result.readbackTopOffset + result.readbackHeight + 4f + ButSize.y + 4f;
@@ -314,34 +333,57 @@ namespace StandPainter
             // Four owned bands: strip (window space, LateWindowOnGUI) / base
             // / saved swatches / input. The base's RectDivider never sees our
             // bands, and we never draw into its rect — except the overlays
-            // located through the layout mirror (Old colour dropper,
-            // brightness slider).
+            // located through the layout mirror (RGB fields, brightness
+            // slider, Old colour dropper).
             float swatchBandHeight = SwatchBandHeight();
             Rect baseRect = inRect;
             baseRect.yMin += Mathf.Max(0f, DragStripHeight - Margin) + DragStripGap;
             baseRect.yMax -= DirectInputRowHeight + swatchBandHeight;
             base.DoWindowContents(baseRect);
-            DoOldColorDropper(baseRect);
-            DoBrightnessSlider(baseRect);
+            MirroredLayout m = MirrorBaseLayout(baseRect.width);
+            DoRgbFields(baseRect, m);
+            DoBrightnessSlider(baseRect, m);
+            DoOldColorDropper(baseRect, m);
             DoSavedSwatchBand(new Rect(inRect.x, inRect.yMax - DirectInputRowHeight - swatchBandHeight + DragStripGap, inRect.width, swatchBandHeight - DragStripGap));
             DoDirectInputRow(new Rect(inRect.x, inRect.yMax - 26f, inRect.width, 26f));
+            // The base samples its (unused) focus tracker on Layout; ours
+            // feeds the commit-on-unfocus semantics of OUR fields.
+            if (Event.current.type == EventType.Layout)
+            {
+                previousFocusedControlName = GUI.GetNameOfFocusedControl();
+            }
+        }
+
+        /// <summary>
+        /// Our R/G/B textfields, drawn with the engine's own
+        /// Widgets.ColorTextfields in the base's (reserved but blank) left
+        /// column — repositioned so the middle field's centre sits on the
+        /// wheel's centreline, spacing untouched. Aggregator rows land at
+        /// top+4+i*34 with height 30, so the middle row's centre is 53px
+        /// below the aggregator origin.
+        /// </summary>
+        internal void DoRgbFields(Rect baseRect, MirroredLayout m)
+        {
+            float wheelCenterY = baseRect.y + m.blockTopOffset + m.blockHeight / 2f;
+            float fieldsTop = wheelCenterY - 53f;
+            RectAggregator aggregator = new RectAggregator(new Rect(new Vector2(baseRect.x, fieldsTop), new Vector2(125f, 0f)), 195906069);
+            Widgets.ColorTextfields(ref aggregator, ref color, ref textfieldBuffers, ref textfieldColorBuffer, previousFocusedControlName, "colorTextfields", RgbComponents, RgbComponents);
         }
 
         /// <summary>
         /// The wheel's missing third axis. The base centres a 128px HSV
-        /// wheel in the block row and, with no forced colour value, carries
-        /// the CURRENT colour's brightness through every drag — so without
-        /// this slider brightness is only reachable by typing. Anchored
-        /// under the mirrored wheel rect; skips silently if the mirrored
-        /// block leaves no room (layout drift guard, same policy as the Old
-        /// colour dropper).
+        /// wheel in the middle column and, with no forced colour value,
+        /// carries the CURRENT colour's brightness through every drag — so
+        /// without this slider brightness is only reachable by typing.
+        /// Wheel-width, centred exactly under the wheel; skips silently if
+        /// the mirrored block leaves no room (layout drift guard, same
+        /// policy as the Old colour dropper).
         /// </summary>
-        internal void DoBrightnessSlider(Rect baseRect)
+        internal void DoBrightnessSlider(Rect baseRect, MirroredLayout m)
         {
-            MirroredLayout m = MirrorBaseLayout(baseRect.width);
             float blockTop = baseRect.y + m.blockTopOffset;
-            float wheelBottom = blockTop + (m.blockHeight - 128f) / 2f + 128f;
-            Rect sliderRect = new Rect(baseRect.x + (baseRect.width - 180f) / 2f, wheelBottom + 10f, 180f, 22f);
+            float wheelBottom = blockTop + (m.blockHeight - WheelSize) / 2f + WheelSize;
+            Rect sliderRect = new Rect(baseRect.x + m.wheelCenterXOffset - WheelSize / 2f, wheelBottom + 12f, WheelSize, 22f);
             if (sliderRect.yMax > blockTop + m.blockHeight)
             {
                 return;
@@ -459,9 +501,8 @@ namespace StandPainter
         /// mirrored readback rect. Skips silently when the numbers stop
         /// adding up (a vanilla layout change), rather than misdrawing.
         /// </summary>
-        internal void DoOldColorDropper(Rect baseRect)
+        internal void DoOldColorDropper(Rect baseRect, MirroredLayout m)
         {
-            MirroredLayout m = MirrorBaseLayout(baseRect.width);
             float readbackTop = baseRect.y + m.readbackTopOffset;
             if (readbackTop + m.readbackHeight > baseRect.yMax - ButSize.y - 4f + 1f)
             {
