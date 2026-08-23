@@ -130,3 +130,4 @@ script does this itself.
 | `StandGraphics.cs` | reflection bridge to the stand's private `RecacheGraphics` |
 | `StandPainterTex.cs` | startup-loaded texture handles (dropper icon) |
 | `StandPainterMod.cs` | Mod entry + ModSettings (saved swatches; no settings window on purpose) |
+| `FloatMenu_Ordered.cs` | FloatMenu that keeps caller order — disabled header rows sink to the bottom in the stock one |

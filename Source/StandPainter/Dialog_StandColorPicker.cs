@@ -681,7 +681,9 @@ namespace StandPainter
                 AdoptColor(capturedFloor);
                 SoundDefOf.Click.PlayOneShotOnCamera();
             }, BaseContent.WhiteTex, capturedFloor));
-            Find.WindowStack.Add(new FloatMenu(options));
+            // FloatMenu_Ordered: plain FloatMenu sorts disabled options (the
+            // headers) to the bottom, un-categorising everything.
+            Find.WindowStack.Add(new FloatMenu_Ordered(options));
         }
 
         /// <summary>One menu entry per colour source: the thing's own icon,
