@@ -11,13 +11,18 @@ using Verse.Sound;
 namespace StandPainter
 {
     /// <summary>
-    /// Vanilla's colour picker (HSV wheel, RGB/HSV textfields, palette row)
-    /// pointed at one stand-held item or the whole stand, plus surface
-    /// vanilla lacks: a hex / decimal-triplet direct-input field (doubling
-    /// as a copyable readout), an eyedropper on the Old colour box for
-    /// one-click revert, a saved-swatch band (the user's own palette,
-    /// persisted in ModSettings across games), and a map-wide dropper that
-    /// sips a colour off anything on the map through the native Targeter.
+    /// Vanilla's colour picker pointed at one stand-held item or the whole
+    /// stand, plus surface vanilla lacks: a brightness slider under the HSV
+    /// wheel (the wheel encodes only hue and saturation — with no forced
+    /// colour value it PRESERVES brightness on every drag, so the slider is
+    /// the missing third axis, not decoration), a hex / decimal-triplet
+    /// direct-input field (doubling as a copyable readout), an eyedropper on
+    /// the Old colour box for one-click revert, a saved-swatch band (the
+    /// user's own palette, persisted in ModSettings across games), and a
+    /// map-wide dropper that sips a colour off anything through the native
+    /// Targeter. Textfields are trimmed to R/G/B — vanilla's own picker (the
+    /// glower) shows Hue|Sat only, and the HSV numerics were noise once the
+    /// wheel + slider cover that space analogically.
     ///
     /// Live preview pushes the working colour to the real items on colour
     /// commit (wheel mouse-up, palette click, field entry), then recaches the
@@ -38,13 +43,11 @@ namespace StandPainter
     /// saved swatches / direct input — with the base handed a rect that
     /// excludes ours. The base's internal layout (private statics,
     /// RectDivider maths) is additionally MIRRORED in MirrorBaseLayout: the
-    /// window height derives from it (no magic 450 — the base's divider
-    /// errors and squeezes when starved; it was sized for the glower's
-    /// 54-swatch palette, and our palette is the live ColorDef set), and the
-    /// Old colour box position falls out of the same maths for the revert
-    /// dropper. Mirror and size share one formula, so vanilla layout drift
-    /// shows up as a misplaced overlay after a game update, never an error —
-    /// re-verify there.
+    /// window height derives from it, the Old colour box position falls out
+    /// of the same maths for the revert dropper, and the brightness slider
+    /// anchors under the mirrored wheel rect. Mirror and size share one
+    /// formula, so vanilla layout drift shows up as a misplaced overlay
+    /// after a game update, never an error — re-verify there.
     ///
     /// Per-drag-frame preview pushes are deliberately off by default: every
     /// unique colour mints a permanent GraphicDatabase entry (AGENTS
@@ -69,6 +72,8 @@ namespace StandPainter
         /// verified against the 1.6.4871 decompile.</summary>
         internal struct MirroredLayout
         {
+            internal float blockTopOffset;
+            internal float blockHeight;
             internal float readbackTopOffset;
             internal float readbackHeight;
             internal float requiredHeight;
@@ -81,6 +86,12 @@ namespace StandPainter
         internal const float SwatchCell = 26f;
         internal const float SwatchPitch = 28f;
         internal const int MaxSwatches = 60;
+
+        /// <summary>R/G/B rows in the base's textfield column — must match
+        /// the ColorComponents passed to the base ctor (the mirror's
+        /// fieldsHeight is derived from it).</summary>
+        internal const int VisibleFieldRows = 3;
+
         internal static readonly Color BadInputTint = new Color(1f, 0.35f, 0.35f);
 
         internal static List<Color> cachedPalette;
@@ -123,7 +134,9 @@ namespace StandPainter
         }
 
         public Dialog_StandColorPicker(Building_OutfitStand stand, List<Thing> targets)
-            : base(Widgets.ColorComponents.All, Widgets.ColorComponents.All)
+            : base(
+                Widgets.ColorComponents.Red | Widgets.ColorComponents.Green | Widgets.ColorComponents.Blue,
+                Widgets.ColorComponents.Red | Widgets.ColorComponents.Green | Widgets.ColorComponents.Blue)
         {
             this.stand = stand;
             this.targets = targets;
@@ -187,13 +200,14 @@ namespace StandPainter
         /// RectDivider default margin (17,4); zero-rows cost 4; the palette
         /// column is 250 wide → 9 swatches per 28px row, ColorSelector's out
         /// height is (rows-1)*28+26 and ColorPalette adds its 26px
-        /// default-swatch row + 2; ColorTextfields aggregates six 30px rows
-        /// at 4 margin (204); the block row is max(palette, 128, fields);
-        /// then 10 + 34 (temperature, allocated even when hidden) + 26
-        /// mystery row, each +4 margin; bottom-justified buttons ButSize.y+4
-        /// and a zero-row. Readback gets the remainder — here exactly two
-        /// Text.LineHeight rows + margin + 6 slack, because requiredHeight
-        /// is built from the same terms.
+        /// default-swatch row + 2; ColorTextfields aggregates one 30px row
+        /// per visible component at 4 margin (VisibleFieldRows × 34); the
+        /// block row is max(palette, 128, fields); then 10 + 34
+        /// (temperature, allocated even when hidden) + 26 mystery row, each
+        /// +4 margin; bottom-justified buttons ButSize.y+4 and a zero-row.
+        /// Readback gets the remainder — here exactly two Text.LineHeight
+        /// rows + margin + 6 slack, because requiredHeight is built from the
+        /// same terms.
         /// </summary>
         internal static MirroredLayout MirrorBaseLayout(float baseWidth)
         {
@@ -204,10 +218,12 @@ namespace StandPainter
             }
             int paletteRows = Mathf.CeilToInt(Palette().Count / 9f);
             float paletteHeight = (paletteRows - 1) * 28f + 26f + 26f + 2f;
-            float fieldsHeight = 6f * 34f;
+            float fieldsHeight = VisibleFieldRows * 34f;
             float blockHeight = Mathf.Max(paletteHeight, Mathf.Max(128f, fieldsHeight));
             MirroredLayout result = default;
-            result.readbackTopOffset = headerHeight + 4f + 4f + blockHeight + 4f + 14f + 38f + 30f;
+            result.blockTopOffset = headerHeight + 4f + 4f;
+            result.blockHeight = blockHeight;
+            result.readbackTopOffset = result.blockTopOffset + blockHeight + 4f + 14f + 38f + 30f;
             result.readbackHeight = Text.LineHeight * 2f + 4f + 6f;
             result.requiredHeight = result.readbackTopOffset + result.readbackHeight + 4f + ButSize.y + 4f;
             return result;
@@ -297,17 +313,48 @@ namespace StandPainter
         {
             // Four owned bands: strip (window space, LateWindowOnGUI) / base
             // / saved swatches / input. The base's RectDivider never sees our
-            // bands, and we never draw into its rect — except the Old colour
-            // dropper, which overlays the base's readback via the layout
-            // mirror.
+            // bands, and we never draw into its rect — except the overlays
+            // located through the layout mirror (Old colour dropper,
+            // brightness slider).
             float swatchBandHeight = SwatchBandHeight();
             Rect baseRect = inRect;
             baseRect.yMin += Mathf.Max(0f, DragStripHeight - Margin) + DragStripGap;
             baseRect.yMax -= DirectInputRowHeight + swatchBandHeight;
             base.DoWindowContents(baseRect);
             DoOldColorDropper(baseRect);
+            DoBrightnessSlider(baseRect);
             DoSavedSwatchBand(new Rect(inRect.x, inRect.yMax - DirectInputRowHeight - swatchBandHeight + DragStripGap, inRect.width, swatchBandHeight - DragStripGap));
             DoDirectInputRow(new Rect(inRect.x, inRect.yMax - 26f, inRect.width, 26f));
+        }
+
+        /// <summary>
+        /// The wheel's missing third axis. The base centres a 128px HSV
+        /// wheel in the block row and, with no forced colour value, carries
+        /// the CURRENT colour's brightness through every drag — so without
+        /// this slider brightness is only reachable by typing. Anchored
+        /// under the mirrored wheel rect; skips silently if the mirrored
+        /// block leaves no room (layout drift guard, same policy as the Old
+        /// colour dropper).
+        /// </summary>
+        internal void DoBrightnessSlider(Rect baseRect)
+        {
+            MirroredLayout m = MirrorBaseLayout(baseRect.width);
+            float blockTop = baseRect.y + m.blockTopOffset;
+            float wheelBottom = blockTop + (m.blockHeight - 128f) / 2f + 128f;
+            Rect sliderRect = new Rect(baseRect.x + (baseRect.width - 180f) / 2f, wheelBottom + 10f, 180f, 22f);
+            if (sliderRect.yMax > blockTop + m.blockHeight)
+            {
+                return;
+            }
+            Color.RGBToHSV(color, out float h, out float s, out float v);
+            float newV = Widgets.HorizontalSlider(sliderRect, v, 0f, 1f);
+            TooltipHandler.TipRegionByKey(sliderRect, "StandPainter_BrightnessTip");
+            if (Mathf.Abs(newV - v) > 0.0005f)
+            {
+                Color adjusted = Color.HSVToRGB(h, s, newV);
+                adjusted.a = 1f;
+                color = adjusted;
+            }
         }
 
         /// <summary>Band height for the saved swatches + the save cell,

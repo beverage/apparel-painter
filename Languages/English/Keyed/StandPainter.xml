@@ -18,4 +18,5 @@
   <StandPainter_SwatchExists>That color is already saved.</StandPainter_SwatchExists>
   <StandPainter_SwatchLimit>Swatch limit reached ({0}).</StandPainter_SwatchLimit>
   <StandPainter_MapDropperTip>Sample a color from the map: click any item, building, pawn or corpse. Pawns and stands list what they wear or hold. Keeps sampling until you right-click or press Escape; click this button again to stop.</StandPainter_MapDropperTip>
+  <StandPainter_BrightnessTip>Brightness. The wheel picks hue and saturation; this slider is the third axis.</StandPainter_BrightnessTip>
 </LanguageData>
