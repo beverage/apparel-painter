@@ -1,7 +1,10 @@
 # AGENTS.md
 
-A RimWorld 1.6 mod: one C# assembly that adds a Paint tab to outfit stands,
-for recolouring the apparel they hold. No Harmony patches, no defs of its own
+A RimWorld 1.6 mod: one C# assembly that adds a Paint tab wherever apparel
+sits — outfit stands, Armor Racks, and vanilla-style storage, through the
+`ContainerAdapter` seam (DEC-037; storage shows the tab only when it holds
+apparel). Designator painters recolour en masse; this is the per-item layer.
+No Harmony patches, no defs of its own
 beyond keyed strings; art is a single UI icon texture
 (`Textures/ApparelPainter/UI/`). **No save-file state** — item colours are
 vanilla `CompColorable` scribing and the user's saved swatches live in

@@ -130,6 +130,8 @@ namespace ApparelPainter
             CaseFloorVanillaPaint(map);
             CaseFloorDubs(map);
             CaseMenuOrder();
+            CaseStorageAdapter(map);
+            CaseRackAdapter();
 
             Report.AppendLine($"result: {Passed} passed, {Failed} failed, {Skipped} skipped");
             Log.Message(Report.ToString());
@@ -545,6 +547,90 @@ namespace ApparelPainter
             // Never added to the WindowStack, so there is nothing to Close —
             // closing an un-stacked window logs a spurious removal error.
             Check(ordered, "menu.order", "headers did not stay in place: " + string.Join(", ", shown.Select(o => o.Label)));
+        }
+
+        /// <summary>The generic Building_Storage door (DEC-037): a shelf
+        /// with a shirt spawned in its cell lists the shirt, shows the tab,
+        /// and hides it again once the apparel is gone.</summary>
+        internal static void CaseStorageAdapter(Map map)
+        {
+            ThingDef shelfDef = DefDatabase<ThingDef>.GetNamedSilentFail("Shelf");
+            if (shelfDef == null)
+            {
+                Check(false, "storage.adapter", "no Shelf def");
+                return;
+            }
+            Predicate<IntVec3> usable = c => c.InBounds(map) && c.Standable(map) && !c.GetTerrain(map).IsWater;
+            IntVec3 origin = map.Center;
+            if (!usable(origin) && !CellFinderLoose.TryGetRandomCellWith(usable, map, 500, out origin))
+            {
+                Check(false, "storage.adapter", "no cell for the shelf fixture");
+                return;
+            }
+            Thing shelf = GenSpawn.Spawn(ThingMaker.MakeThing(shelfDef, GenStuff.DefaultStuffFor(shelfDef)), origin, map);
+            Apparel shirt = null;
+            try
+            {
+                ContainerAdapter adapter = ContainerAdapter.For(shelf);
+                bool isStorage = adapter is StorageAdapter;
+                bool hiddenEmpty = adapter != null && !adapter.TabVisible(shelf);
+                shirt = MakeApparel("Apparel_CollarShirt");
+                GenSpawn.Spawn(shirt, shelf.Position, map);
+                bool listed = false;
+                if (adapter != null)
+                {
+                    foreach (Thing t in adapter.ListedItems(shelf))
+                    {
+                        if (t == shirt)
+                        {
+                            listed = true;
+                        }
+                    }
+                }
+                bool visibleFull = adapter != null && adapter.TabVisible(shelf);
+                Check(isStorage && hiddenEmpty && listed && visibleFull, "storage.adapter",
+                    $"storage={isStorage} hiddenEmpty={hiddenEmpty} listed={listed} visible={visibleFull}");
+            }
+            finally
+            {
+                if (shirt != null && !shirt.Destroyed)
+                {
+                    shirt.Destroy();
+                }
+                if (!shelf.Destroyed)
+                {
+                    shelf.Destroy();
+                }
+            }
+        }
+
+        /// <summary>Armor Racks integration tripwires — the reflected
+        /// public fields the adapter's refresh depends on. SKIPs when the
+        /// mod is not in the list; --full covers it.</summary>
+        internal static void CaseRackAdapter()
+        {
+            if (ArmorRackAdapter.RackType == null)
+            {
+                Skip("rack.adapter", "Armor Racks not loaded (minimal list) — run --full to cover it");
+                return;
+            }
+            bool fields = ArmorRackAdapter.DrawerField != null && ArmorRackAdapter.ResolvedField != null;
+            int rackDefs = 0;
+            int missing = 0;
+            foreach (ThingDef def in DefDatabase<ThingDef>.AllDefsListForReading)
+            {
+                if (def.thingClass == null || !ArmorRackAdapter.RackType.IsAssignableFrom(def.thingClass))
+                {
+                    continue;
+                }
+                rackDefs++;
+                if (def.inspectorTabsResolved == null || !def.inspectorTabsResolved.Any(t => t is ITab_ApparelPainter))
+                {
+                    missing++;
+                }
+            }
+            Check(fields && rackDefs > 0 && missing == 0, "rack.adapter",
+                $"fields={fields} rackDefs={rackDefs} missingTabs={missing} — Armor Racks internals moved?");
         }
     }
 }

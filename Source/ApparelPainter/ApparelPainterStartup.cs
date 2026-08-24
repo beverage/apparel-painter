@@ -24,9 +24,22 @@ namespace ApparelPainter
         static ApparelPainterStartup()
         {
             Type tabType = typeof(ITab_ApparelPainter);
+            // The three adapter families (DEC-037). The rack type resolves
+            // only when Armor Racks is loaded; storage covers every
+            // Building_Storage subclass — the tab's apparel-present
+            // visibility gate keeps it off crates and fridges.
+            Type rackType = ArmorRackAdapter.RackType;
             foreach (ThingDef def in DefDatabase<ThingDef>.AllDefsListForReading)
             {
-                if (def.thingClass == null || !typeof(Building_OutfitStand).IsAssignableFrom(def.thingClass))
+                Type tc = def.thingClass;
+                if (tc == null)
+                {
+                    continue;
+                }
+                bool target = typeof(Building_OutfitStand).IsAssignableFrom(tc)
+                    || typeof(Building_Storage).IsAssignableFrom(tc)
+                    || (rackType != null && rackType.IsAssignableFrom(tc));
+                if (!target)
                 {
                     continue;
                 }

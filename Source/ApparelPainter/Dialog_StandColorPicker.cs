@@ -110,7 +110,8 @@ namespace ApparelPainter
         /// pass. Position only — size stays computed from the palette.</summary>
         internal static Vector2? rememberedPosition;
 
-        internal readonly Building_OutfitStand stand;
+        internal readonly Thing owner;
+        internal readonly ContainerAdapter adapter;
         internal readonly List<Thing> targets;
         internal readonly List<Snapshot> snapshots = new List<Snapshot>();
         internal readonly Color naturalDefault;
@@ -150,10 +151,11 @@ namespace ApparelPainter
             }
         }
 
-        public Dialog_StandColorPicker(Building_OutfitStand stand, List<Thing> targets)
+        public Dialog_StandColorPicker(Thing owner, List<Thing> targets)
             : base(Widgets.ColorComponents.None, Widgets.ColorComponents.None)
         {
-            this.stand = stand;
+            this.owner = owner;
+            adapter = ContainerAdapter.For(owner);
             this.targets = targets;
             // Palette, not modal (see class doc): the tab's dropper flow and
             // camera freedom depend on all three of these staying exactly so.
@@ -624,12 +626,14 @@ namespace ApparelPainter
                     }
                     continue;
                 }
-                if (th is Building_OutfitStand standTarget)
+                ContainerAdapter cellAdapter = ContainerAdapter.For(th);
+                if (cellAdapter != null && !cellAdapter.ItemsSpawned)
                 {
-                    // Held items go under Apparel; the stand itself still
-                    // lists under Things — its stuff colour is a real
-                    // sample too.
-                    apparelItems.AddRange(standTarget.HeldItems);
+                    // Container-held items (stands, racks) go under Apparel;
+                    // the building itself still lists under Things — its
+                    // stuff colour is a real sample too. Spawned-model
+                    // storage skips: the cell scan already sees its items.
+                    apparelItems.AddRange(cellAdapter.ListedItems(th));
                 }
                 ThingCategory category = th.def.category;
                 if (category == ThingCategory.Building || category == ThingCategory.Item || category == ThingCategory.Plant)
@@ -831,7 +835,7 @@ namespace ApparelPainter
             {
                 ColorForcer.ForceSetColor(item, color);
             }
-            StandGraphics.Recache(stand);
+            adapter?.Refresh(owner);
             lastPushed = color;
         }
 
@@ -893,7 +897,7 @@ namespace ApparelPainter
                     ColorForcer.ResetToNatural(snap.item);
                 }
             }
-            StandGraphics.Recache(stand);
+            adapter?.Refresh(owner);
         }
     }
 }

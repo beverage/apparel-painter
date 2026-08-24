@@ -7,15 +7,17 @@ using Verse.Sound;
 namespace ApparelPainter
 {
     /// <summary>
-    /// The Paint tab on an outfit stand: one row per held item — info card,
-    /// icon, label, a colour swatch that opens the picker, and a reset back
-    /// to natural — plus whole-stand paint/reset above the list. The weapon
-    /// slot has no CompColorable and renders swatch-less (AGENTS invariant).
+    /// The Paint tab on any apparel-holding building the adapter seam
+    /// recognises (stands, Armor Racks, vanilla-style storage — DEC-037):
+    /// one row per listed item — info card, icon, label, a colour swatch
+    /// that opens the picker, and a reset back to natural — plus
+    /// whole-building paint/reset above the list. Items without
+    /// CompColorable (a stand's weapon slot) render swatch-less.
     ///
     /// While a picker window is open the swatches become EYEDROPPERS: a
     /// dropper overlay appears and clicking a swatch adopts that item's
     /// colour into the open picker instead of opening a new one. Works
-    /// across stands — select another stand and sip colours from its tab.
+    /// across buildings — select another and sip colours from its tab.
     /// (Depends on the picker being palette-not-modal; see its class doc.)
     /// </summary>
     public class ITab_ApparelPainter : ITab
@@ -36,21 +38,28 @@ namespace ApparelPainter
             labelKey = "ApparelPainter_Tab";
         }
 
-        internal Building_OutfitStand Stand => SelThing as Building_OutfitStand;
+        internal Thing Owner => SelThing;
+
+        internal ContainerAdapter Adapter => ContainerAdapter.For(SelThing);
 
         public override bool IsVisible
         {
             get
             {
-                Building_OutfitStand stand = Stand;
-                return stand != null && stand.Faction == Faction.OfPlayer;
+                Thing owner = Owner;
+                if (owner == null || owner.Faction != Faction.OfPlayer)
+                {
+                    return false;
+                }
+                ContainerAdapter adapter = Adapter;
+                return adapter != null && adapter.TabVisible(owner);
             }
         }
 
-        internal static List<Thing> ColorableItems(Building_OutfitStand stand)
+        internal static List<Thing> ColorableItems(ContainerAdapter adapter, Thing owner)
         {
             List<Thing> result = new List<Thing>();
-            foreach (Thing item in stand.HeldItems)
+            foreach (Thing item in adapter.ListedItems(owner))
             {
                 if (item.TryGetComp<CompColorable>() != null)
                 {
@@ -62,14 +71,16 @@ namespace ApparelPainter
 
         protected override void FillTab()
         {
-            Building_OutfitStand stand = Stand;
-            if (stand == null)
+            Thing owner = Owner;
+            ContainerAdapter adapter = Adapter;
+            if (owner == null || adapter == null)
             {
                 return;
             }
 
             Rect outRect = new Rect(0f, 0f, size.x, size.y).ContractedBy(Margin);
-            List<Thing> colorable = ColorableItems(stand);
+            List<Thing> listed = new List<Thing>(adapter.ListedItems(owner));
+            List<Thing> colorable = ColorableItems(adapter, owner);
             Dialog_StandColorPicker openPicker = Find.WindowStack.WindowOfType<Dialog_StandColorPicker>();
             float curY = outRect.y;
 
@@ -87,7 +98,7 @@ namespace ApparelPainter
             Rect paintAllRect = new Rect(outRect.x, curY, 150f, 26f);
             if (Widgets.ButtonText(paintAllRect, "ApparelPainter_PaintAll".Translate(), active: colorable.Count > 0))
             {
-                OpenPicker(stand, colorable);
+                OpenPicker(owner, colorable);
             }
             Rect resetAllRect = new Rect(paintAllRect.xMax + 8f, curY, 110f, 26f);
             if (Widgets.ButtonText(resetAllRect, "ApparelPainter_ResetAll".Translate(), active: anyActive))
@@ -96,31 +107,30 @@ namespace ApparelPainter
                 {
                     ColorForcer.ResetToNatural(t);
                 }
-                StandGraphics.Recache(stand);
+                adapter.Refresh(owner);
             }
             curY += ButtonRowHeight;
 
             Widgets.ListSeparator(ref curY, outRect.width, "ApparelPainter_Contents".Translate());
 
-            IReadOnlyList<Thing> held = stand.HeldItems;
-            if (held.Count == 0)
+            if (listed.Count == 0)
             {
                 Widgets.NoneLabel(ref curY, outRect.width);
                 return;
             }
 
-            Rect viewRect = new Rect(0f, 0f, outRect.width - 16f, held.Count * RowHeight);
+            Rect viewRect = new Rect(0f, 0f, outRect.width - 16f, listed.Count * RowHeight);
             Rect scrollRect = new Rect(outRect.x, curY, outRect.width, outRect.yMax - curY);
             Widgets.BeginScrollView(scrollRect, ref scrollPosition, viewRect);
             float y = 0f;
-            for (int i = 0; i < held.Count; i++)
+            for (int i = 0; i < listed.Count; i++)
             {
-                DoRow(stand, held[i], i, viewRect.width, ref y, openPicker);
+                DoRow(owner, adapter, listed[i], i, viewRect.width, ref y, openPicker);
             }
             Widgets.EndScrollView();
         }
 
-        internal void DoRow(Building_OutfitStand stand, Thing item, int index, float width, ref float y, Dialog_StandColorPicker openPicker)
+        internal void DoRow(Thing owner, ContainerAdapter adapter, Thing item, int index, float width, ref float y, Dialog_StandColorPicker openPicker)
         {
             Rect rowRect = new Rect(0f, y, width, RowHeight);
             if (Mouse.IsOver(rowRect))
@@ -146,7 +156,7 @@ namespace ApparelPainter
             if (comp == null)
             {
                 y += RowHeight;
-                return; // the weapon slot: nothing to paint
+                return; // e.g. a stand's weapon slot: nothing to paint
             }
 
             Rect swatchRect = new Rect(width - SwatchWidth - ResetWidth - 8f, y + (RowHeight - SwatchHeight) / 2f, SwatchWidth, SwatchHeight);
@@ -173,7 +183,7 @@ namespace ApparelPainter
                 TooltipHandler.TipRegionByKey(swatchRect, "ApparelPainter_SwatchTip");
                 if (Widgets.ButtonInvisible(swatchRect))
                 {
-                    OpenPicker(stand, new List<Thing> { item });
+                    OpenPicker(owner, new List<Thing> { item });
                 }
             }
 
@@ -183,13 +193,13 @@ namespace ApparelPainter
                 if (Widgets.ButtonText(resetRect, "ApparelPainter_Reset".Translate()))
                 {
                     ColorForcer.ResetToNatural(item);
-                    StandGraphics.Recache(stand);
+                    adapter.Refresh(owner);
                 }
             }
             y += RowHeight;
         }
 
-        internal static void OpenPicker(Building_OutfitStand stand, List<Thing> targets)
+        internal static void OpenPicker(Thing owner, List<Thing> targets)
         {
             if (targets.Count == 0)
             {
@@ -198,7 +208,7 @@ namespace ApparelPainter
             // One picker at a time: closing the old one first runs its
             // cancel-revert before the new one snapshots.
             Find.WindowStack.TryRemove(typeof(Dialog_StandColorPicker), false);
-            Find.WindowStack.Add(new Dialog_StandColorPicker(stand, targets));
+            Find.WindowStack.Add(new Dialog_StandColorPicker(owner, targets));
         }
     }
 }
