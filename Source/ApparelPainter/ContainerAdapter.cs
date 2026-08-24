@@ -130,8 +130,12 @@ namespace ApparelPainter
     /// Any vanilla-style storage (Building_Storage and subclasses: shelves,
     /// [sbz] Neat Storage, most storage mods). Items are SPAWNED in the
     /// building's cells — Dubs can paint them en masse; we are the
-    /// fine-grained per-item layer. Apparel rows only, and no refresh:
-    /// Notify_ColorChanged repaints spawned things for free.
+    /// fine-grained per-item layer. Rows are everything PAINTABLE
+    /// (CompColorable — apparel plus the odd colorable shield or modded
+    /// item), which keeps the tab truthful: wherever it appears, what it
+    /// lists can be painted, and bulk goods never summon it. Refresh
+    /// handles the ASF bake; plain vanilla-drawn items repaint via
+    /// Notify_ColorChanged on their own.
     /// </summary>
     internal class StorageAdapter : ContainerAdapter
     {
@@ -149,7 +153,7 @@ namespace ApparelPainter
             }
             foreach (Thing t in group.HeldThings)
             {
-                if (t is Apparel)
+                if (t.TryGetComp<CompColorable>() != null)
                 {
                     yield return t;
                 }

@@ -133,6 +133,7 @@ namespace ApparelPainter
             CaseStorageAdapter(map);
             CaseRackAdapter();
             CaseAsfInterop();
+            CaseDisplaySort();
 
             Report.AppendLine($"result: {Passed} passed, {Failed} failed, {Skipped} skipped");
             Log.Message(Report.ToString());
@@ -657,6 +658,25 @@ namespace ApparelPainter
             }
             Check(members && asfDefs > 0, "asf.interop",
                 $"members={members} asfDefs={asfDefs} — ASF internals moved? Painted ASF storage will look stale.");
+        }
+
+        /// <summary>The canonical display sort: label groups, quality
+        /// descends, condition descends — identical on every family.</summary>
+        internal static void CaseDisplaySort()
+        {
+            Apparel shirtNormal = MakeApparel("Apparel_CollarShirt");
+            Apparel shirtExcellent = MakeApparel("Apparel_CollarShirt");
+            Apparel duster = MakeApparel("Apparel_Duster");
+            shirtNormal.TryGetComp<CompQuality>()?.SetQuality(QualityCategory.Normal, ArtGenerationContext.Colony);
+            shirtExcellent.TryGetComp<CompQuality>()?.SetQuality(QualityCategory.Excellent, ArtGenerationContext.Colony);
+            List<Thing> list = new List<Thing> { duster, shirtNormal, shirtExcellent };
+            list.Sort(ITab_ApparelPainter.CompareForDisplay);
+            bool ordered = list[0] == shirtExcellent && list[1] == shirtNormal && list[2] == duster;
+            Check(ordered, "display.sort",
+                "expected excellent shirt, normal shirt, duster; got " + string.Join(", ", list.Select(t => t.Label)));
+            shirtNormal.Destroy();
+            shirtExcellent.Destroy();
+            duster.Destroy();
         }
     }
 }

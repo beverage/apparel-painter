@@ -654,6 +654,7 @@ namespace ApparelPainter
                 return;
             }
 
+            apparelItems.Sort(ITab_ApparelPainter.CompareForDisplay);
             List<FloatMenuOption> options = new List<FloatMenuOption>();
             if (apparelItems.Count > 0)
             {

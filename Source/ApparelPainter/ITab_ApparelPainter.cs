@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using RimWorld;
 using UnityEngine;
@@ -56,17 +57,37 @@ namespace ApparelPainter
             }
         }
 
-        internal static List<Thing> ColorableItems(ContainerAdapter adapter, Thing owner)
+        /// <summary>One canonical row order on every family (principal call,
+        /// 2026-08-24): label A→Z groups same-def garments, then quality
+        /// high→low, then hit points high→low — the order a wardrobe is
+        /// scanned in. The tab and the dropper's apparel section both use
+        /// this. Raw enumeration order is spatial for storage and
+        /// chronological for containers, matching neither each other nor
+        /// the neighbours' own sorted content tabs.</summary>
+        internal static int CompareForDisplay(Thing a, Thing b)
         {
-            List<Thing> result = new List<Thing>();
-            foreach (Thing item in adapter.ListedItems(owner))
+            int result = string.Compare(a.def.label, b.def.label, StringComparison.OrdinalIgnoreCase);
+            if (result != 0)
             {
-                if (item.TryGetComp<CompColorable>() != null)
-                {
-                    result.Add(item);
-                }
+                return result;
             }
-            return result;
+            bool hasA = a.TryGetQuality(out QualityCategory qualityA);
+            bool hasB = b.TryGetQuality(out QualityCategory qualityB);
+            int rankA = hasA ? (int)qualityA : -1;
+            int rankB = hasB ? (int)qualityB : -1;
+            result = rankB.CompareTo(rankA);
+            if (result != 0)
+            {
+                return result;
+            }
+            float hpA = a.def.useHitPoints ? (float)a.HitPoints / a.MaxHitPoints : 1f;
+            float hpB = b.def.useHitPoints ? (float)b.HitPoints / b.MaxHitPoints : 1f;
+            result = hpB.CompareTo(hpA);
+            if (result != 0)
+            {
+                return result;
+            }
+            return a.thingIDNumber.CompareTo(b.thingIDNumber);
         }
 
         protected override void FillTab()
@@ -80,7 +101,15 @@ namespace ApparelPainter
 
             Rect outRect = new Rect(0f, 0f, size.x, size.y).ContractedBy(Margin);
             List<Thing> listed = new List<Thing>(adapter.ListedItems(owner));
-            List<Thing> colorable = ColorableItems(adapter, owner);
+            listed.Sort(CompareForDisplay);
+            List<Thing> colorable = new List<Thing>();
+            foreach (Thing t in listed)
+            {
+                if (t.TryGetComp<CompColorable>() != null)
+                {
+                    colorable.Add(t);
+                }
+            }
             Dialog_StandColorPicker openPicker = Find.WindowStack.WindowOfType<Dialog_StandColorPicker>();
             float curY = outRect.y;
 
