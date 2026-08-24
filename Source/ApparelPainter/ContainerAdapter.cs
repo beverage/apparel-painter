@@ -158,6 +158,15 @@ namespace ApparelPainter
 
         internal override bool ItemsSpawned => true;
 
+        internal override void Refresh(Thing building)
+        {
+            // Plain spawned items repaint via Notify_ColorChanged on their
+            // own — but ASF-family storage (sbz Neat Storage, Reel's, ...)
+            // bakes per-item print data that a colour change never
+            // invalidates. Poke its renderer; a no-op for vanilla shelves.
+            AsfInterop.TryRefresh(building);
+        }
+
         internal override bool TabVisible(Thing building)
         {
             foreach (Thing _ in ListedItems(building))

@@ -53,12 +53,16 @@ Do not claim a behavioural change works without saying how it was checked.
 
 ## Invariants that will not announce themselves
 
-**Every colour change to a held item must be followed by
-`StandGraphics.Recache(stand)`.** The stand bakes `apparel.DrawColor` into
-cached `Graphic`s at add/remove/spawn only; `Notify_ColorChanged` dirties the
-apparel, which the stand never re-reads. Miss it and the stand renders the
-old colour until reload — the bug will look like painting doesn't work at
-all.
+**Every colour change must be followed by the owner's adapter Refresh —
+renderers BAKE colours, and each family bakes somewhere else.** Four bake
+sites so far, all found the hard way: the outfit stand's private graphic
+cache (rebuilt only at add/remove/spawn — `StandGraphics.Recache`), Armor
+Racks' `ContentsDrawer.IsApparelResolved`, ASF-family storage's per-item
+print data (`AsfInterop` → `StorageRenderer.SetAllPrintDatasDirty`; plain
+vanilla-drawn items are the ONE case `Notify_ColorChanged` handles alone),
+and Dubs' floor grids on the read side. Miss one and painting "doesn't
+work" on exactly that family until a reload. When a new storage
+integration misrenders after paint, look for its bake first.
 
 **`CompColorable.SetColor` no-ops on exact white for undyed items.** The
 comp's private colour field defaults to white while inactive, and `SetColor`

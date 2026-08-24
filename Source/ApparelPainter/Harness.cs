@@ -132,6 +132,7 @@ namespace ApparelPainter
             CaseMenuOrder();
             CaseStorageAdapter(map);
             CaseRackAdapter();
+            CaseAsfInterop();
 
             Report.AppendLine($"result: {Passed} passed, {Failed} failed, {Skipped} skipped");
             Log.Message(Report.ToString());
@@ -631,6 +632,31 @@ namespace ApparelPainter
             }
             Check(fields && rackDefs > 0 && missing == 0, "rack.adapter",
                 $"fields={fields} rackDefs={rackDefs} missingTabs={missing} — Armor Racks internals moved?");
+        }
+
+        /// <summary>ASF render-cache tripwires: painted items on ASF-family
+        /// storage (sbz Neat Storage, Reel's) stay visually stale unless
+        /// AsfInterop can reach Renderer.SetAllPrintDatasDirty. SKIPs when
+        /// ASF is not in the list; --full covers it.</summary>
+        internal static void CaseAsfInterop()
+        {
+            AsfInterop.EnsureInit();
+            if (AsfInterop.thingClassType == null)
+            {
+                Skip("asf.interop", "Adaptive Storage Framework not loaded (minimal list) — run --full to cover it");
+                return;
+            }
+            bool members = AsfInterop.rendererGetter != null && AsfInterop.setDirtyMethod != null;
+            int asfDefs = 0;
+            foreach (ThingDef def in DefDatabase<ThingDef>.AllDefsListForReading)
+            {
+                if (def.thingClass != null && AsfInterop.thingClassType.IsAssignableFrom(def.thingClass))
+                {
+                    asfDefs++;
+                }
+            }
+            Check(members && asfDefs > 0, "asf.interop",
+                $"members={members} asfDefs={asfDefs} — ASF internals moved? Painted ASF storage will look stale.");
         }
     }
 }
