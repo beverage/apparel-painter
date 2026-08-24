@@ -98,6 +98,24 @@ then
   [ -f "$LIVE_CONFIG" ] || die "no live ModsConfig.xml to copy from"
   cp "$LIVE_CONFIG" "$TESTDATA/Config/ModsConfig.xml"
   printf 'mod list: yours, copied (not swapped)\n'
+  # The copy must ACTIVATE the mod under test — a list that predates the
+  # Apparel Painter rename (mrbeverage.standpainter) or simply has the mod
+  # disabled would boot without us, and "the harness never ran" is the best
+  # case; the worst is asserting nothing. Migrate the old id in the COPY,
+  # or append ours. The live file is never written.
+  if ! grep -qi 'mrbeverage.apparelpainter' "$TESTDATA/Config/ModsConfig.xml"
+  then
+    python3 - "$TESTDATA/Config/ModsConfig.xml" <<'EOF'
+import sys
+path = sys.argv[1]
+s = open(path).read()
+s = s.replace('<li>mrbeverage.standpainter</li>', '<li>mrbeverage.apparelpainter</li>')
+if 'mrbeverage.apparelpainter' not in s:
+    s = s.replace('</activeMods>', '  <li>mrbeverage.apparelpainter</li>\n  </activeMods>')
+open(path, 'w').write(s)
+EOF
+    printf 'mod list: activated mrbeverage.apparelpainter in the copy (old id migrated or appended)\n'
+  fi
 else
   version="$(grep -m1 '<version>' "$LIVE_CONFIG" 2>/dev/null || printf '  <version>1.6.4871 rev595</version>')"
   {
