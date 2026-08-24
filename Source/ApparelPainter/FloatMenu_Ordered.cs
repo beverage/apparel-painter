@@ -1,7 +1,7 @@
 using System.Collections.Generic;
 using Verse;
 
-namespace StandPainter
+namespace ApparelPainter
 {
     /// <summary>
     /// FloatMenu re-sorts its options by Priority — and a disabled option

@@ -1,4 +1,4 @@
-# Stand Painter
+# Apparel Painter
 
 A RimWorld 1.6 mod: paint the apparel held on outfit stands — the one
 container designator-based painting tools cannot reach.
@@ -21,7 +21,7 @@ injects the tab and lists stand contents; the painting UI is in progress.
 ## Building
 
 ```
-dotnet build Source/StandPainter/StandPainter.csproj -c Release
+dotnet build Source/ApparelPainter/ApparelPainter.csproj -c Release
 ```
 
 MIT licensed.

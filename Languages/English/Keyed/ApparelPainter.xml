@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LanguageData>
+  <ApparelPainter_Tab>Paint</ApparelPainter_Tab>
+  <ApparelPainter_Contents>Held items</ApparelPainter_Contents>
+  <ApparelPainter_PaintAll>Paint all...</ApparelPainter_PaintAll>
+  <ApparelPainter_ResetAll>Reset all</ApparelPainter_ResetAll>
+  <ApparelPainter_Reset>Reset</ApparelPainter_Reset>
+  <ApparelPainter_SwatchTip>Change color. The stand previews your choice as you pick; Cancel restores what was there.</ApparelPainter_SwatchTip>
+  <ApparelPainter_DirectInputLabel>Hex / RGB</ApparelPainter_DirectInputLabel>
+  <ApparelPainter_ApplyColor>Set</ApparelPainter_ApplyColor>
+  <ApparelPainter_DirectInputTip>Type a color and press Enter: hex (EFD8AE or #EFD8AE) or a decimal triplet (237,216,174 — bytes, or 0-1 floats). No alpha. When not editing, this shows the current color's hex, ready to copy to another stand.</ApparelPainter_DirectInputTip>
+  <ApparelPainter_DragStripTip>Drag to move this window.</ApparelPainter_DragStripTip>
+  <ApparelPainter_DropperTip>Pick up this item's color into the open color picker.</ApparelPainter_DropperTip>
+  <ApparelPainter_OldColorTip>Pick the old color back up — the color this picker opened with.</ApparelPainter_OldColorTip>
+  <ApparelPainter_SaveSwatchTip>Save the current color as a swatch. Saved swatches persist across games.</ApparelPainter_SaveSwatchTip>
+  <ApparelPainter_SavedSwatchTip>{0}. Click to use, right-click to remove.</ApparelPainter_SavedSwatchTip>
+  <ApparelPainter_RemoveSwatch>Remove swatch</ApparelPainter_RemoveSwatch>
+  <ApparelPainter_SwatchExists>That color is already saved.</ApparelPainter_SwatchExists>
+  <ApparelPainter_SwatchLimit>Swatch limit reached ({0}).</ApparelPainter_SwatchLimit>
+  <ApparelPainter_MapDropperTip>Sample a color from the map: click anything — furniture, items, pawns, corpses, floors. A cell with several sources lists the whole stack, floor included; bare floor samples instantly. Keeps sampling until you right-click or press Escape; click this button again to stop.</ApparelPainter_MapDropperTip>
+  <ApparelPainter_BrightnessTip>Brightness. The wheel picks hue and saturation; this slider is the third axis.</ApparelPainter_BrightnessTip>
+  <ApparelPainter_HeaderApparel>— Apparel —</ApparelPainter_HeaderApparel>
+  <ApparelPainter_HeaderThings>— Things —</ApparelPainter_HeaderThings>
+  <ApparelPainter_HeaderFloor>— Floor —</ApparelPainter_HeaderFloor>
+  <ApparelPainter_Painted>painted</ApparelPainter_Painted>
+</LanguageData>

@@ -2,7 +2,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using Verse;
 
-namespace StandPainter
+namespace ApparelPainter
 {
     /// <summary>
     /// Mod entry: owns the settings (saved swatches). Deliberately no
@@ -10,18 +10,18 @@ namespace StandPainter
     /// appears; swatches are managed inside the picker (the + cell saves,
     /// right-click removes).
     /// </summary>
-    public class StandPainterMod : Mod
+    public class ApparelPainterMod : Mod
     {
-        internal static StandPainterMod Instance;
+        internal static ApparelPainterMod Instance;
 
-        internal static StandPainterSettings Settings => Instance.settings;
+        internal static ApparelPainterSettings Settings => Instance.settings;
 
-        internal readonly StandPainterSettings settings;
+        internal readonly ApparelPainterSettings settings;
 
-        public StandPainterMod(ModContentPack content) : base(content)
+        public ApparelPainterMod(ModContentPack content) : base(content)
         {
             Instance = this;
-            settings = GetSettings<StandPainterSettings>();
+            settings = GetSettings<ApparelPainterSettings>();
         }
     }
 
@@ -31,7 +31,7 @@ namespace StandPainter
     /// registered ParseHelper value type (ParseHelper.cs:389), so
     /// LookMode.Value round-trips the list.
     /// </summary>
-    public class StandPainterSettings : ModSettings
+    public class ApparelPainterSettings : ModSettings
     {
         internal List<Color> savedSwatches = new List<Color>();
 

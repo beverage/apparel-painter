@@ -8,11 +8,11 @@ using RimWorld;
 using UnityEngine;
 using Verse;
 
-namespace StandPainter
+namespace ApparelPainter
 {
     /// <summary>
     /// Boots the regression harness when the game is launched with
-    /// <c>-standpainter-harness</c> (devtools/run-harness.sh drives the whole
+    /// <c>-apparelpainter-harness</c> (devtools/run-harness.sh drives the whole
     /// loop: isolated save-data folder, wait on OUR pid, grep the report).
     ///
     /// The trigger is a flag-gated MonoBehaviour rather than shift-change's
@@ -25,7 +25,7 @@ namespace StandPainter
     [StaticConstructorOnStartup]
     internal static class HarnessBoot
     {
-        internal const string Arg = "standpainter-harness";
+        internal const string Arg = "apparelpainter-harness";
 
         static HarnessBoot()
         {
@@ -33,7 +33,7 @@ namespace StandPainter
             {
                 return;
             }
-            GameObject driver = new GameObject("StandPainterHarnessDriver");
+            GameObject driver = new GameObject("ApparelPainterHarnessDriver");
             UnityEngine.Object.DontDestroyOnLoad(driver);
             driver.AddComponent<HarnessDriver>();
         }
@@ -103,9 +103,9 @@ namespace StandPainter
             {
                 // Never let a throw leave the process alive: an automated
                 // caller waiting on exit would hang forever.
-                Log.Error("[StandPainter] harness threw: " + e);
+                Log.Error("[ApparelPainter] harness threw: " + e);
             }
-            Log.Message("[StandPainter] harness auto-run: " + (passed ? "PASSED" : "FAILED"));
+            Log.Message("[ApparelPainter] harness auto-run: " + (passed ? "PASSED" : "FAILED"));
             Root.Shutdown();
         }
 
@@ -115,7 +115,7 @@ namespace StandPainter
             Passed = 0;
             Failed = 0;
             Skipped = 0;
-            Report.AppendLine("[StandPainter] regression harness");
+            Report.AppendLine("[ApparelPainter] regression harness");
 
             CaseEngineMembers();
             CaseInjection();
@@ -260,7 +260,7 @@ namespace StandPainter
                     continue;
                 }
                 stands++;
-                if (def.inspectorTabsResolved == null || !def.inspectorTabsResolved.Any(t => t is ITab_StandPainter))
+                if (def.inspectorTabsResolved == null || !def.inspectorTabsResolved.Any(t => t is ITab_ApparelPainter))
                 {
                     missing++;
                 }

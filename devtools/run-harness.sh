@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Run the Stand Painter regression harness end to end, in an ISOLATED game
+# Run the Apparel Painter regression harness end to end, in an ISOLATED game
 # instance. Adapted from shift-change's run-harness.sh — same isolation, same
 # safety posture, same exit-code contract.
 #
@@ -9,7 +9,7 @@
 #                                    # gate, and the only list that covers the
 #                                    # Dubs Paint Shop interop case
 #
-# Builds Release, launches RimWorld with -quicktest -standpainter-harness
+# Builds Release, launches RimWorld with -quicktest -apparelpainter-harness
 # against a throwaway save-data folder, waits for the game to run every case
 # and quit itself, prints the report. Exits non-zero if any case failed.
 #
@@ -42,7 +42,7 @@ TIMEOUT=1200
 MINIMAL_MODS=(
   ludeon.rimworld
   ludeon.rimworld.odyssey
-  mrbeverage.standpainter
+  mrbeverage.apparelpainter
 )
 
 FULL=0
@@ -66,16 +66,16 @@ then
 fi
 
 # The dll the game loads is the one on disk, not the one in your editor.
-dotnet build "$REPO/Source/StandPainter/StandPainter.csproj" -c Release >/dev/null \
+dotnet build "$REPO/Source/ApparelPainter/ApparelPainter.csproj" -c Release >/dev/null \
   || die "Release build failed — fix that first"
 
 # THE BUILD IS NOT THE THING THE GAME LOADS. -savedatafolder isolates Config,
-# Saves and Prefs, but NOT the mod: the game reads Mods/StandPainter out of
+# Saves and Prefs, but NOT the mod: the game reads Mods/ApparelPainter out of
 # the app bundle. A release-staging copy or a worktree there means a green
 # run silently asserts against the wrong bits — the worst shape a test result
 # can take. Compare canonical paths and refuse.
-MODS_ENTRY="$APP/Mods/StandPainter"
-[ -e "$MODS_ENTRY" ] || die "no Mods/StandPainter entry — the game cannot load this mod at all"
+MODS_ENTRY="$APP/Mods/ApparelPainter"
+[ -e "$MODS_ENTRY" ] || die "no Mods/ApparelPainter entry — the game cannot load this mod at all"
 realpath_of() { python3 -c 'import os,sys; print(os.path.realpath(sys.argv[1]))' "$1"; }
 ENTRY_REAL="$(realpath_of "$MODS_ENTRY")"
 REPO_REAL="$(realpath_of "$REPO")"
@@ -86,7 +86,7 @@ then
        built:  $REPO_REAL
        loads:  $ENTRY_REAL
 
-       Point Mods/StandPainter at the checkout under test and run again."
+       Point Mods/ApparelPainter at the checkout under test and run again."
 fi
 printf 'load path: %s\n' "$ENTRY_REAL"
 
@@ -119,7 +119,7 @@ printf 'save data: %s\n' "$TESTDATA"
 printf 'launching…\n'
 
 # The binary directly, not `open`: $! must be OUR pid, and only ever ours.
-"$APP/Contents/MacOS/$PROC" -quicktest -standpainter-harness \
+"$APP/Contents/MacOS/$PROC" -quicktest -apparelpainter-harness \
   "-savedatafolder=$TESTDATA" -logfile "$LOG" >/dev/null 2>&1 &
 GAME_PID=$!
 printf 'pid: %s\n' "$GAME_PID"
@@ -141,8 +141,8 @@ printf 'game exited after ~%ss\n\n' "$elapsed"
 
 [ -f "$LOG" ] || die "no log at $LOG — did -logfile take?"
 grep -q "harness auto-run" "$LOG" \
-  || die "the harness never ran — is -standpainter-harness still wired up? See $LOG"
+  || die "the harness never ran — is -apparelpainter-harness still wired up? See $LOG"
 
-sed -n '/\[StandPainter\] regression harness/,/harness auto-run/p' "$LOG"
+sed -n '/\[ApparelPainter\] regression harness/,/harness auto-run/p' "$LOG"
 
 grep -q "harness auto-run: PASSED" "$LOG"

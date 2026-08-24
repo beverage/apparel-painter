@@ -2,7 +2,7 @@ using RimWorld;
 using UnityEngine;
 using Verse;
 
-namespace StandPainter
+namespace ApparelPainter
 {
     /// <summary>
     /// Comp-wart-safe colour writes (AGENTS invariants). All colour changes

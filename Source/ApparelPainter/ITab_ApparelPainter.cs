@@ -4,7 +4,7 @@ using UnityEngine;
 using Verse;
 using Verse.Sound;
 
-namespace StandPainter
+namespace ApparelPainter
 {
     /// <summary>
     /// The Paint tab on an outfit stand: one row per held item — info card,
@@ -18,7 +18,7 @@ namespace StandPainter
     /// across stands — select another stand and sip colours from its tab.
     /// (Depends on the picker being palette-not-modal; see its class doc.)
     /// </summary>
-    public class ITab_StandPainter : ITab
+    public class ITab_ApparelPainter : ITab
     {
         internal const float Margin = 10f;
         internal const float ButtonRowHeight = 30f;
@@ -30,10 +30,10 @@ namespace StandPainter
 
         internal Vector2 scrollPosition;
 
-        public ITab_StandPainter()
+        public ITab_ApparelPainter()
         {
             size = new Vector2(460f, 450f);
-            labelKey = "StandPainter_Tab";
+            labelKey = "ApparelPainter_Tab";
         }
 
         internal Building_OutfitStand Stand => SelThing as Building_OutfitStand;
@@ -85,12 +85,12 @@ namespace StandPainter
             }
 
             Rect paintAllRect = new Rect(outRect.x, curY, 150f, 26f);
-            if (Widgets.ButtonText(paintAllRect, "StandPainter_PaintAll".Translate(), active: colorable.Count > 0))
+            if (Widgets.ButtonText(paintAllRect, "ApparelPainter_PaintAll".Translate(), active: colorable.Count > 0))
             {
                 OpenPicker(stand, colorable);
             }
             Rect resetAllRect = new Rect(paintAllRect.xMax + 8f, curY, 110f, 26f);
-            if (Widgets.ButtonText(resetAllRect, "StandPainter_ResetAll".Translate(), active: anyActive))
+            if (Widgets.ButtonText(resetAllRect, "ApparelPainter_ResetAll".Translate(), active: anyActive))
             {
                 foreach (Thing t in colorable)
                 {
@@ -100,7 +100,7 @@ namespace StandPainter
             }
             curY += ButtonRowHeight;
 
-            Widgets.ListSeparator(ref curY, outRect.width, "StandPainter_Contents".Translate());
+            Widgets.ListSeparator(ref curY, outRect.width, "ApparelPainter_Contents".Translate());
 
             IReadOnlyList<Thing> held = stand.HeldItems;
             if (held.Count == 0)
@@ -160,8 +160,8 @@ namespace StandPainter
             {
                 // Eyedropper mode: sip this item's colour into the open
                 // picker rather than opening a new one.
-                GUI.DrawTexture(new Rect(swatchRect.xMax - 18f, swatchRect.y + 3f, 16f, 16f), StandPainterTex.Dropper);
-                TooltipHandler.TipRegionByKey(swatchRect, "StandPainter_DropperTip");
+                GUI.DrawTexture(new Rect(swatchRect.xMax - 18f, swatchRect.y + 3f, 16f, 16f), ApparelPainterTex.Dropper);
+                TooltipHandler.TipRegionByKey(swatchRect, "ApparelPainter_DropperTip");
                 if (Widgets.ButtonInvisible(swatchRect))
                 {
                     openPicker.AdoptColor(item.DrawColor);
@@ -170,7 +170,7 @@ namespace StandPainter
             }
             else
             {
-                TooltipHandler.TipRegionByKey(swatchRect, "StandPainter_SwatchTip");
+                TooltipHandler.TipRegionByKey(swatchRect, "ApparelPainter_SwatchTip");
                 if (Widgets.ButtonInvisible(swatchRect))
                 {
                     OpenPicker(stand, new List<Thing> { item });
@@ -180,7 +180,7 @@ namespace StandPainter
             if (comp.Active)
             {
                 Rect resetRect = new Rect(width - ResetWidth, y + 3f, ResetWidth, RowHeight - 6f);
-                if (Widgets.ButtonText(resetRect, "StandPainter_Reset".Translate()))
+                if (Widgets.ButtonText(resetRect, "ApparelPainter_Reset".Translate()))
                 {
                     ColorForcer.ResetToNatural(item);
                     StandGraphics.Recache(stand);

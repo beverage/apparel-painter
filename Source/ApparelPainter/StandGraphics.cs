@@ -2,7 +2,7 @@ using System.Reflection;
 using RimWorld;
 using Verse;
 
-namespace StandPainter
+namespace ApparelPainter
 {
     /// <summary>
     /// Reflection bridge to Building_OutfitStand.RecacheGraphics (private).
@@ -23,7 +23,7 @@ namespace StandPainter
             // Surface a game-version breakage at load, not at first paint.
             if (recacheMethod == null)
             {
-                Log.Error("[StandPainter] Building_OutfitStand.RecacheGraphics not found — painted stands will not refresh until a reload. Please report this with your game version.");
+                Log.Error("[ApparelPainter] Building_OutfitStand.RecacheGraphics not found — painted stands will not refresh until a reload. Please report this with your game version.");
             }
         }
 

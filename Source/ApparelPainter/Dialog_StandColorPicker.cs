@@ -8,7 +8,7 @@ using UnityEngine;
 using Verse;
 using Verse.Sound;
 
-namespace StandPainter
+namespace ApparelPainter
 {
     /// <summary>
     /// Vanilla's colour picker pointed at one stand-held item or the whole
@@ -66,7 +66,7 @@ namespace StandPainter
     {
         // Assigned at runtime by the TweakValue dev menu, hence the explicit
         // initializer rather than a CS0649 suppression.
-        [TweakValue("StandPainter")]
+        [TweakValue("ApparelPainter")]
         internal static bool PreviewWhileDragging = false;
 
         internal struct Snapshot
@@ -89,7 +89,7 @@ namespace StandPainter
             internal float requiredHeight;
         }
 
-        internal const string DirectInputControlName = "StandPainter_DirectInput";
+        internal const string DirectInputControlName = "ApparelPainter_DirectInput";
         internal const float DirectInputRowHeight = 30f;
         internal const float DragStripHeight = 24f;
         internal const float DragStripGap = 4f;
@@ -390,7 +390,7 @@ namespace StandPainter
             }
             Color.RGBToHSV(color, out float h, out float s, out float v);
             float newV = Widgets.HorizontalSlider(sliderRect, v, 0f, 1f);
-            TooltipHandler.TipRegionByKey(sliderRect, "StandPainter_BrightnessTip");
+            TooltipHandler.TipRegionByKey(sliderRect, "ApparelPainter_BrightnessTip");
             if (Mathf.Abs(newV - v) > 0.0005f)
             {
                 Color adjusted = Color.HSVToRGB(h, s, newV);
@@ -403,7 +403,7 @@ namespace StandPainter
         /// grid-wrapped. Feeds both InitialSize and the band rect.</summary>
         internal static float SwatchBandHeight()
         {
-            int cells = StandPainterMod.Settings.savedSwatches.Count + 1;
+            int cells = ApparelPainterMod.Settings.savedSwatches.Count + 1;
             int rows = Mathf.CeilToInt((float)cells / SwatchesPerRow);
             return rows * SwatchPitch + DragStripGap;
         }
@@ -416,7 +416,7 @@ namespace StandPainter
         /// </summary>
         internal void DoSavedSwatchBand(Rect band)
         {
-            List<Color> saved = StandPainterMod.Settings.savedSwatches;
+            List<Color> saved = ApparelPainterMod.Settings.savedSwatches;
             int perRow = SwatchesPerRow;
             for (int i = 0; i <= saved.Count; i++)
             {
@@ -429,7 +429,7 @@ namespace StandPainter
                     {
                         SaveCurrentSwatch();
                     }
-                    TooltipHandler.TipRegionByKey(cell, "StandPainter_SaveSwatchTip");
+                    TooltipHandler.TipRegionByKey(cell, "ApparelPainter_SaveSwatchTip");
                     continue;
                 }
                 Color swatch = saved[i];
@@ -439,10 +439,10 @@ namespace StandPainter
                     int index = i;
                     Find.WindowStack.Add(new FloatMenu(new List<FloatMenuOption>
                     {
-                        new FloatMenuOption("StandPainter_RemoveSwatch".Translate(), delegate { RemoveSwatch(index); }),
+                        new FloatMenuOption("ApparelPainter_RemoveSwatch".Translate(), delegate { RemoveSwatch(index); }),
                     }));
                 }
-                TooltipHandler.TipRegion(cell, "StandPainter_SavedSwatchTip".Translate(ColorUtility.ToHtmlStringRGB(swatch)));
+                TooltipHandler.TipRegion(cell, "ApparelPainter_SavedSwatchTip".Translate(ColorUtility.ToHtmlStringRGB(swatch)));
                 if (Widgets.ColorBox(cell, ref color, swatch))
                 {
                     AdoptColor(color);
@@ -452,37 +452,37 @@ namespace StandPainter
 
         internal void SaveCurrentSwatch()
         {
-            List<Color> saved = StandPainterMod.Settings.savedSwatches;
+            List<Color> saved = ApparelPainterMod.Settings.savedSwatches;
             foreach (Color existing in saved)
             {
                 if (existing.IndistinguishableFrom(color))
                 {
-                    Messages.Message("StandPainter_SwatchExists".Translate(), MessageTypeDefOf.RejectInput, historical: false);
+                    Messages.Message("ApparelPainter_SwatchExists".Translate(), MessageTypeDefOf.RejectInput, historical: false);
                     return;
                 }
             }
             if (saved.Count >= MaxSwatches)
             {
-                Messages.Message("StandPainter_SwatchLimit".Translate(MaxSwatches), MessageTypeDefOf.RejectInput, historical: false);
+                Messages.Message("ApparelPainter_SwatchLimit".Translate(MaxSwatches), MessageTypeDefOf.RejectInput, historical: false);
                 return;
             }
             Color toSave = color;
             toSave.a = 1f;
             saved.Add(toSave);
-            StandPainterMod.Instance.WriteSettings();
+            ApparelPainterMod.Instance.WriteSettings();
             RefreshWindowHeight();
             SoundDefOf.Tick_High.PlayOneShotOnCamera();
         }
 
         internal void RemoveSwatch(int index)
         {
-            List<Color> saved = StandPainterMod.Settings.savedSwatches;
+            List<Color> saved = ApparelPainterMod.Settings.savedSwatches;
             if (index < 0 || index >= saved.Count)
             {
                 return;
             }
             saved.RemoveAt(index);
-            StandPainterMod.Instance.WriteSettings();
+            ApparelPainterMod.Instance.WriteSettings();
             RefreshWindowHeight();
         }
 
@@ -519,12 +519,12 @@ namespace StandPainter
             {
                 return;
             }
-            GUI.DrawTexture(new Rect(oldBox.xMax - 18f, oldBox.y + (oldBox.height - 16f) / 2f, 16f, 16f), StandPainterTex.Dropper);
+            GUI.DrawTexture(new Rect(oldBox.xMax - 18f, oldBox.y + (oldBox.height - 16f) / 2f, 16f, 16f), ApparelPainterTex.Dropper);
             if (Mouse.IsOver(oldBox))
             {
                 Widgets.DrawHighlight(oldBox);
             }
-            TooltipHandler.TipRegionByKey(oldBox, "StandPainter_OldColorTip");
+            TooltipHandler.TipRegionByKey(oldBox, "ApparelPainter_OldColorTip");
             if (Widgets.ButtonInvisible(oldBox))
             {
                 AdoptColor(oldColor);
@@ -586,7 +586,7 @@ namespace StandPainter
             mapDropperActive = true;
             Find.Targeter.BeginTargeting(DropperTargetParams(), OnDropperTarget,
                 caster: null, actionWhenFinished: OnDropperFinished,
-                mouseAttachment: StandPainterTex.Dropper, requiresCastedSelected: false);
+                mouseAttachment: ApparelPainterTex.Dropper, requiresCastedSelected: false);
         }
 
         /// <summary>
@@ -653,7 +653,7 @@ namespace StandPainter
             List<FloatMenuOption> options = new List<FloatMenuOption>();
             if (apparelItems.Count > 0)
             {
-                options.Add(new FloatMenuOption("StandPainter_HeaderApparel".Translate(), null));
+                options.Add(new FloatMenuOption("ApparelPainter_HeaderApparel".Translate(), null));
                 foreach (Thing item in apparelItems)
                 {
                     options.Add(SourceOption(item));
@@ -661,17 +661,17 @@ namespace StandPainter
             }
             if (surfaceThings.Count > 0)
             {
-                options.Add(new FloatMenuOption("StandPainter_HeaderThings".Translate(), null));
+                options.Add(new FloatMenuOption("ApparelPainter_HeaderThings".Translate(), null));
                 foreach (Thing th in surfaceThings)
                 {
                     options.Add(SourceOption(th));
                 }
             }
-            options.Add(new FloatMenuOption("StandPainter_HeaderFloor".Translate(), null));
+            options.Add(new FloatMenuOption("ApparelPainter_HeaderFloor".Translate(), null));
             string floorLabel = terrain.LabelCap;
             if (floorPainted)
             {
-                floorLabel += ", " + "StandPainter_Painted".Translate();
+                floorLabel += ", " + "ApparelPainter_Painted".Translate();
             }
             floorLabel += " (" + ColorUtility.ToHtmlStringRGB(floorColor) + ")";
             Color capturedFloor = floorColor;
@@ -757,7 +757,7 @@ namespace StandPainter
             GUI.color = new Color(1f, 1f, 1f, 0.55f);
             GUI.DrawTexture(new Rect(stripRect.center.x - 9f, stripRect.center.y - 9f, 18f, 18f), TexButton.DragHash);
             GUI.color = guiPrev;
-            TooltipHandler.TipRegionByKey(stripRect, "StandPainter_DragStripTip");
+            TooltipHandler.TipRegionByKey(stripRect, "ApparelPainter_DragStripTip");
             GUI.DragWindow(stripRect);
         }
 
@@ -777,7 +777,7 @@ namespace StandPainter
 
             using (new TextBlock(TextAnchor.MiddleLeft))
             {
-                Widgets.Label(labelRect, "StandPainter_DirectInputLabel".Translate());
+                Widgets.Label(labelRect, "ApparelPainter_DirectInputLabel".Translate());
             }
 
             bool focused = GUI.GetNameOfFocusedControl() == DirectInputControlName;
@@ -803,9 +803,9 @@ namespace StandPainter
             }
             directInputBuffer = Widgets.TextField(fieldRect, directInputBuffer);
             GUI.color = guiPrev;
-            TooltipHandler.TipRegionByKey(fieldRect, "StandPainter_DirectInputTip");
+            TooltipHandler.TipRegionByKey(fieldRect, "ApparelPainter_DirectInputTip");
 
-            bool setClicked = Widgets.ButtonText(setRect, "StandPainter_ApplyColor".Translate(), active: parseOk);
+            bool setClicked = Widgets.ButtonText(setRect, "ApparelPainter_ApplyColor".Translate(), active: parseOk);
             if ((enterPressed || setClicked) && parseOk)
             {
                 color = parsed;
@@ -818,11 +818,11 @@ namespace StandPainter
                 Widgets.DrawHighlight(dropperRect);
                 Widgets.DrawBox(dropperRect);
             }
-            if (Widgets.ButtonImage(dropperRect, StandPainterTex.Dropper))
+            if (Widgets.ButtonImage(dropperRect, ApparelPainterTex.Dropper))
             {
                 BeginMapDropper();
             }
-            TooltipHandler.TipRegionByKey(dropperRect, "StandPainter_MapDropperTip");
+            TooltipHandler.TipRegionByKey(dropperRect, "ApparelPainter_MapDropperTip");
         }
 
         internal void PushPreview()

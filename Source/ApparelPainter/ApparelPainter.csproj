@@ -1,6 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
-  <!-- Stand Painter's only assembly. RimWorld is .NET Framework 4.7.2. Game
+  <!-- Apparel Painter's only assembly. RimWorld is .NET Framework 4.7.2. Game
        references resolve below, either from a local install or from
        Krafs.Rimworld.Ref (same pattern as Shift Change and Fine
        Establishments). No Harmony: phase 1 patches nothing — the whole
@@ -9,8 +9,8 @@
   <PropertyGroup>
     <TargetFramework>net472</TargetFramework>
     <LangVersion>latest</LangVersion>
-    <RootNamespace>StandPainter</RootNamespace>
-    <AssemblyName>StandPainter</AssemblyName>
+    <RootNamespace>ApparelPainter</RootNamespace>
+    <AssemblyName>ApparelPainter</AssemblyName>
     <Version>0.0.1</Version>
     <Configurations>Debug;Release</Configurations>
 

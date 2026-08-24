@@ -3,7 +3,7 @@
 A RimWorld 1.6 mod: one C# assembly that adds a Paint tab to outfit stands,
 for recolouring the apparel they hold. No Harmony patches, no defs of its own
 beyond keyed strings; art is a single UI icon texture
-(`Textures/StandPainter/UI/`). **No save-file state** — item colours are
+(`Textures/ApparelPainter/UI/`). **No save-file state** — item colours are
 vanilla `CompColorable` scribing and the user's saved swatches live in
 ModSettings (config file), so mid-save removal stays clean.
 
@@ -14,12 +14,12 @@ ModSettings (config file), so mid-save removal stays clean.
 ## Verify your work
 
 ```bash
-dotnet build Source/StandPainter/StandPainter.csproj -c Release
+dotnet build Source/ApparelPainter/ApparelPainter.csproj -c Release
 ```
 
 End every session with a Release build: Debug and Release write the same
 output path and Debug carries the ECR hot-reload rig beside our dll. The
-Release build sweeps those artifacts; only `Assemblies/StandPainter.dll` is
+Release build sweeps those artifacts; only `Assemblies/ApparelPainter.dll` is
 ever tracked.
 
 The regression harness is the release gate:
@@ -136,7 +136,7 @@ render the row swatch-less rather than hiding it.
 **A `.dds` beside a PNG silently shadows it.** Texture tools on player
 machines (FasterGameLoading et al.) write `.dds` into the mod folder through
 the symlink, with no timestamp check. `*.dds` is gitignored; when
-regenerating `Textures/StandPainter/UI/Dropper.png` (scratch script,
+regenerating `Textures/ApparelPainter/UI/Dropper.png` (scratch script,
 `uv run --with pillow`), delete any `.dds` sibling first — the generator
 script does this itself.
 
@@ -144,12 +144,12 @@ script does this itself.
 
 | File | Job |
 |---|---|
-| `StandPainterStartup.cs` | class-keyed ITab injection onto every stand def |
-| `ITab_StandPainter.cs` | the Paint tab — rows, swatches, eyedropper mode, whole-stand actions |
+| `ApparelPainterStartup.cs` | class-keyed ITab injection onto every stand def |
+| `ITab_ApparelPainter.cs` | the Paint tab — rows, swatches, eyedropper mode, whole-stand actions |
 | `Dialog_StandColorPicker.cs` | picker subclass — drag strip, live preview on commit, direct input, snapshot revert |
 | `ColorForcer.cs` | comp-wart-safe colour writes, natural colour, wearer dirtying |
 | `StandGraphics.cs` | reflection bridge to the stand's private `RecacheGraphics` |
-| `StandPainterTex.cs` | startup-loaded texture handles (dropper icon) |
-| `StandPainterMod.cs` | Mod entry + ModSettings (saved swatches; no settings window on purpose) |
+| `ApparelPainterTex.cs` | startup-loaded texture handles (dropper icon) |
+| `ApparelPainterMod.cs` | Mod entry + ModSettings (saved swatches; no settings window on purpose) |
 | `FloatMenu_Ordered.cs` | FloatMenu that keeps caller order — disabled header rows sink to the bottom in the stock one |
 | `DubsInterop.cs` | reflection read of Dubs Paint Shop's floor-paint map component (its paint is invisible to TerrainGrid.ColorAt) |

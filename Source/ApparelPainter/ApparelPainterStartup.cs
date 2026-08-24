@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using RimWorld;
 using Verse;
 
-namespace StandPainter
+namespace ApparelPainter
 {
     /// <summary>
     /// Injects the Paint tab onto every outfit-stand def at startup.
@@ -19,11 +19,11 @@ namespace StandPainter
     /// Odyssey no def matches and startup is a harmless no-op.
     /// </summary>
     [StaticConstructorOnStartup]
-    public static class StandPainterStartup
+    public static class ApparelPainterStartup
     {
-        static StandPainterStartup()
+        static ApparelPainterStartup()
         {
-            Type tabType = typeof(ITab_StandPainter);
+            Type tabType = typeof(ITab_ApparelPainter);
             foreach (ThingDef def in DefDatabase<ThingDef>.AllDefsListForReading)
             {
                 if (def.thingClass == null || !typeof(Building_OutfitStand).IsAssignableFrom(def.thingClass))

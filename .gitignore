@@ -30,4 +30,4 @@ dist/
 # dependencies and an instrumented-original copy beside our dll; the Release
 # build sweeps them. Only our own assembly is ever tracked.
 Assemblies/*
-!Assemblies/StandPainter.dll
+!Assemblies/ApparelPainter.dll
