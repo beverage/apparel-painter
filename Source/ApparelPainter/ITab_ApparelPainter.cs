@@ -182,6 +182,18 @@ namespace ApparelPainter
             Widgets.Label(labelRect, label.Truncate(labelRect.width));
             Text.Anchor = TextAnchor.UpperLeft;
 
+            // Full item details on hover, the same construction ASF's
+            // contents tab uses (LabelCap carries quality and wear;
+            // DescriptionDetailed appends the apparel Layer/Covers block).
+            // Only over the icon+label zone — the swatch and Reset keep
+            // their own tips.
+            Rect tipZone = new Rect(0f, y, labelRight, RowHeight);
+            if (Mouse.IsOver(tipZone))
+            {
+                TooltipHandler.TipRegion(tipZone,
+                    new TipSignal(label + "\n" + item.DescriptionDetailed, item.thingIDNumber ^ 0x2E5C1));
+            }
+
             if (comp == null)
             {
                 y += RowHeight;
