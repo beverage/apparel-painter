@@ -12,7 +12,7 @@
     <RootNamespace>ApparelPainter</RootNamespace>
     <AssemblyName>ApparelPainter</AssemblyName>
     <Version>0.0.1</Version>
-    <Configurations>Debug;Release</Configurations>
+    <Configurations>Debug;Media;Release</Configurations>
 
     <!-- Straight into the mod's load path, no framework subfolder, no pdb —
          the game cannot read one. -->
@@ -25,6 +25,26 @@
 
     <ImplicitUsings>disable</ImplicitUsings>
     <Nullable>disable</Nullable>
+  </PropertyGroup>
+
+  <!-- Three configurations, three jobs (the shift-change pattern):
+
+         Debug    SCENES, ECR      hand-driving + UI iteration
+         Media    SCENES, no ECR   footage: Release codegen, stage present
+         Release  neither          shipping, and the harness release gate
+
+       SCENES compiles in the gif-stage builder and its [DebugAction]. It
+       must never ship: the stage clears a ~260-cell footprint outright and
+       leaves player-faction buildings and colonists behind. The harness is
+       NOT scenes-gated — it ships in every configuration, flag-guarded,
+       because run-harness.sh asserts against the literal dll players
+       install. -->
+  <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
+    <DefineConstants>$(DefineConstants);SCENES</DefineConstants>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)' == 'Media'">
+    <DefineConstants>$(DefineConstants);TRACE;SCENES</DefineConstants>
+    <Optimize>true</Optimize>
   </PropertyGroup>
 
   <ItemGroup>
