@@ -4,6 +4,9 @@
 # Build artifact of devtools/bbcode-preview.py, written beside its source.
 _bbcode-preview.html
 
+# Re-minted by media/banner-export.sh on every run — template + title map.
+media/cards/_export/
+
 # Editor state
 .vscode/
 

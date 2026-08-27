@@ -14,9 +14,11 @@
 # instrumentation in the frame.
 #
 # The scene mod list starts from shift-change's and swaps in what this mod's
-# footage needs: ASF + sbz Neat Storage (the ASF shelf skins) and Armor
-# Racks. Shift Change itself is deliberately absent — its gizmos land on the
-# very outfit stands being filmed and would photobomb every take.
+# footage needs: ASF + sbz Neat Storage (the ASF shelf skins), Armor Racks,
+# and Royalty — the wardrobe stage dresses its stands in Royalty formal wear
+# and refuses to build without it. Shift Change itself is deliberately
+# absent — its gizmos land on the very outfit stands being filmed and would
+# photobomb every take.
 #
 # ISOLATION and the no-touching-a-running-game rule are run-harness.sh's,
 # verbatim. Do not reach for pkill — a running instance is somebody's colony.
@@ -33,6 +35,7 @@ PROC="RimWorld by Ludeon Studios"
 SCENE_MODS=(
   brrainz.harmony
   ludeon.rimworld
+  ludeon.rimworld.royalty
   ludeon.rimworld.odyssey
   adaptive.storage.framework
   sbz.NeatStorage
@@ -96,6 +99,7 @@ else
       printf '    <li>%s</li>\n' "$mod"
     done
     printf '  </activeMods>\n  <knownExpansions>\n'
+    printf '    <li>ludeon.rimworld.royalty</li>\n'
     printf '    <li>ludeon.rimworld.odyssey</li>\n'
     printf '  </knownExpansions>\n</ModsConfigData>\n'
   } > "$SCENEDATA/Config/ModsConfig.xml"
@@ -129,4 +133,4 @@ fi
 
 printf 'pid: %s (leave it to the player; this script does not manage it)\n' "$GAME_PID"
 printf 'log: %s\n' "$LOG"
-printf 'in-game: dev mode is pre-seeded. Debug actions → Apparel Painter → Build gif stage, then click the stage south-west corner.\n'
+printf 'in-game: dev mode is pre-seeded. Debug actions → Apparel Painter → Build gif stage or Build wardrobe stage, then click the stage south-west corner.\n'

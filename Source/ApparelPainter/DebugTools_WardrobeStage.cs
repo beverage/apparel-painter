@@ -1,0 +1,377 @@
+#if SCENES
+using System.Collections.Generic;
+using System.Linq;
+using LudeonTK;
+using RimWorld;
+using UnityEngine;
+using Verse;
+
+namespace ApparelPainter
+{
+    /// <summary>
+    /// SCENES-only: Dev mode → Debug actions → Apparel Painter → Build
+    /// wardrobe stage, then click the stage's south-west corner cell.
+    /// A quiet sibling to <see cref="DebugTools_GifStage"/>: one steel-tile
+    /// pad, one row of eight undyed outfit stands, and nothing else. No
+    /// racks, no shelves, no model pawns, no cloth stacks.
+    ///
+    /// WHY A SECOND STAGE rather than a flag on the first: the gif stage
+    /// exists to show the mod's whole surface at once, so it is deliberately
+    /// busy. This one is for framed stills and stepped sequences of the
+    /// stands alone, where anything else in shot is a distraction. They
+    /// share the pad idiom and <see cref="DebugTools_GifStage.SpawnClean"/>;
+    /// they do not share a footprint.
+    ///
+    /// THE WARDROBE mirrors the principal's throne-room changing room:
+    /// every stand carries a formal shirt, the men add a vest and a top hat,
+    /// the women a corset, a ladies hat and a prestige robe.
+    ///
+    /// TWO STUFFS, ON PURPOSE. Everything is undyed, so each garment shows
+    /// its material's natural colour and nothing else — that is the "before"
+    /// the paired shot argues from. One stuff would make the row a flat
+    /// wash; two make the point that an unpainted wardrobe is whatever the
+    /// bill happened to use. Synthread for the layers worn against the body,
+    /// alpaca wool for hats and robes.
+    ///
+    /// ALTERNATING men and women, where the real room groups them in two
+    /// columns. Alternating means ANY adjacent pair is one of each, so the
+    /// two-stand shot is just a two-cell frame at the left end and the
+    /// eight-stand shot is the same row widened. One fixture, both shots,
+    /// no second build.
+    ///
+    /// ROYALTY IS REQUIRED for all six garments (they live in
+    /// Data/Royalty/Defs/ThingDefs_Misc/Apparel_Royal.xml). The gif stage
+    /// degrades to Core wear when an integration is missing; this one has
+    /// nothing to degrade to, so it says so and builds nothing.
+    ///
+    /// DESTRUCTIVE by design — it clears its footprint outright — and never
+    /// ships: the whole file compiles out of Release.
+    /// </summary>
+    internal static class DebugTools_WardrobeStage
+    {
+        // Big enough that a zoomed-out frame contains ONLY stage. At rootSize
+        // 24 the camera sees roughly 79x51 cells, so anything smaller than that
+        // leaves biome at the edges and the shot stops looking deliberate.
+        // Clearing is O(cells) and this is a debug action, so the cost is a
+        // one-off second rather than anything that matters.
+        internal const int PadWidth = 96;
+        internal const int PadDepth = 64;
+        internal const int StandCount = 8;
+
+        /// <summary>Worn against the body: shirt, vest, corset.</summary>
+        internal const string Inner = "Synthread";
+
+        /// <summary>Outer and headwear: hats, robe.</summary>
+        internal const string Outer = "WoolAlpaca";
+
+        // The principal's throne-room palette, carried over from Shift Change's
+        // rec room stage so a shot taken here matches the live colony.
+        //
+        // BLACK TIE IS 22% LIGHTNESS, NOT 13%, and that number is measured
+        // rather than chosen: apparel tint MULTIPLIES the texture, so the
+        // surviving tonal range is proportional to the tint's own luminance.
+        // At 13% the vest kept a 43-level spread where a scarlet robe kept 167,
+        // and its shadow tones had merged into the pawn outline. Do not
+        // "correct" it darker.
+        internal static readonly Color BlackTie = new Color(0.22f, 0.22f, 0.27f);
+        internal static readonly Color DressWhite = new Color(0.95f, 0.94f, 0.92f);
+
+        /// <summary>One frock per woman, in row order, matching the live room.</summary>
+        internal static readonly Color[] Frocks =
+        {
+            new Color(0.72f, 0.09f, 0.15f),   // scarlet
+            new Color(0.85f, 0.68f, 0.24f),   // gold
+            new Color(0.07f, 0.44f, 0.29f),   // emerald
+            new Color(0.15f, 0.29f, 0.63f),   // sapphire
+        };
+
+        /// <summary>
+        /// Row placement inside the pad, CENTRED. On a pad this size a row
+        /// pinned near one corner leaves the stands against an edge, which is
+        /// the thing a big pad exists to avoid: centred, every zoom level has
+        /// stage on all four sides of the subject.
+        /// </summary>
+        internal const int RowX = (PadWidth - (StandCount * 2 - 1)) / 2;
+
+        internal const int RowZ = PadDepth / 2;
+
+        /// <summary>
+        /// The reference pair sits three cells south of the row, far enough to
+        /// fall outside any frame drawn around the stands. The capture path
+        /// crops by cell rect, so anything outside the requested rect is simply
+        /// not in the picture and the source never needs cleaning up between
+        /// the before and after shots.
+        /// </summary>
+        internal const int RefZ = RowZ - 3;
+
+        [DebugAction("Apparel Painter", "Build wardrobe stage", false, false,
+            actionType = DebugActionType.ToolMap,
+            allowedGameStates = AllowedGameStates.PlayingOnMap)]
+        internal static void BuildWardrobeStage()
+        {
+            Map map = Find.CurrentMap;
+            IntVec3 origin = UI.MouseCell();
+            CellRect pad = new CellRect(origin.x, origin.z, PadWidth, PadDepth);
+            if (!pad.InBounds(map))
+            {
+                Messages.Message("Wardrobe stage does not fit here.",
+                    MessageTypeDefOf.RejectInput, historical: false);
+                return;
+            }
+
+            ThingDef standDef = DefDatabase<ThingDef>.GetNamedSilentFail("Building_OutfitStand");
+            if (standDef == null)
+            {
+                Messages.Message("No outfit stand def — Odyssey is required.",
+                    MessageTypeDefOf.RejectInput, historical: false);
+                return;
+            }
+            if (DefDatabase<ThingDef>.GetNamedSilentFail("Apparel_ShirtRuffle") == null)
+            {
+                Messages.Message("No Royalty formal wear — enable Royalty for this stage.",
+                    MessageTypeDefOf.RejectInput, historical: false);
+                return;
+            }
+
+            GenDebug.ClearArea(pad, map);
+            TerrainDef steelTile = DefDatabase<TerrainDef>.GetNamedSilentFail("MetalTile")
+                ?? TerrainDefOf.PavedTile;
+            foreach (IntVec3 cell in pad)
+            {
+                map.terrainGrid.SetTerrain(cell, steelTile);
+                map.roofGrid.SetRoof(cell, null);
+            }
+
+            PinLighting(map);
+
+            // Two cells apart so each stand reads as its own silhouette at
+            // the zoom a card is framed at, and so a two-cell frame at the
+            // left end holds exactly one man and one woman.
+            for (int i = 0; i < StandCount; i++)
+            {
+                IntVec3 cell = origin + new IntVec3(RowX + i * 2, 0, RowZ);
+                Building_OutfitStand stand = (Building_OutfitStand)
+                    DebugTools_GifStage.SpawnClean(map, standDef, null, cell, Rot4.South);
+
+                Dress(stand, "Apparel_ShirtRuffle", Inner);
+                if (i % 2 == 0)
+                {
+                    Dress(stand, "Apparel_VestRoyal", Inner);
+                    Dress(stand, "Apparel_HatTop", Outer);
+                }
+                else
+                {
+                    Dress(stand, "Apparel_Corset", Inner);
+                    Dress(stand, "Apparel_RobeRoyal", Outer);
+                    Dress(stand, "Apparel_HatLadies", Outer);
+                }
+            }
+
+            // -- the reference pair: the dropper's colour source -----------
+            //
+            // A stepped take wants an exact colour already ON the map: one
+            // sip is a single click on camera, where typing a hex value is
+            // a beat of dead film. These two are set with ColorForcer at
+            // build time and are the ONLY dyed things the stage places.
+            //
+            // That is not a workaround dressed as a feature: matching a
+            // garment you already own is what the dropper is for, and it is
+            // the same trick DebugTools_GifStage uses when it puts a teal
+            // duster on a model pawn purely to be sipped.
+            Reference(map, origin + new IntVec3(RowX, 0, RefZ),
+                "Apparel_ShirtRuffle", Inner, DressWhite);
+            Reference(map, origin + new IntVec3(RowX + 2, 0, RefZ),
+                "Apparel_VestRoyal", Inner, BlackTie);
+
+            Messages.Message(
+                $"Wardrobe stage built: {StandCount} undyed stands, {Inner} and {Outer}, "
+                + "plus a dyed reference pair to dropper from.",
+                MessageTypeDefOf.TaskCompletion, historical: false);
+        }
+
+        /// <summary>
+        /// SCENES-only: Dev mode → Debug actions → Apparel Painter → Paint
+        /// wardrobe stage, clicking the SAME south-west corner cell the build
+        /// action used. Turns the undyed row into the principal's throne-room
+        /// palette in one step, so a before/after pair is two captures of one
+        /// cell rect with a single action between them.
+        ///
+        /// THIS IS NOT A SHORTCUT PAST THE MOD. It commits through
+        /// <c>Dialog_StandColorPicker.AcceptForTest</c>, which is the picker's
+        /// own <c>SaveColor</c> path — the same code a mouse click reaches,
+        /// including ColorForcer and the owner's adapter refresh. What it skips
+        /// is the mouse, not the mod. The regression harness drives the picker
+        /// the same way, headless, and has since before this stage existed.
+        ///
+        /// The dialog is never added to the window stack: constructing it and
+        /// committing is enough, exactly as Harness.CaseDialogAccept does.
+        /// </summary>
+        [DebugAction("Apparel Painter", "Paint wardrobe stage", false, false,
+            actionType = DebugActionType.ToolMap,
+            allowedGameStates = AllowedGameStates.PlayingOnMap)]
+        internal static void PaintWardrobeStage()
+        {
+            Map map = Find.CurrentMap;
+            IntVec3 origin = UI.MouseCell();
+            int painted = 0;
+            int frock = 0;
+
+            for (int i = 0; i < StandCount; i++)
+            {
+                IntVec3 cell = origin + new IntVec3(RowX + i * 2, 0, RowZ);
+                if (!cell.InBounds(map))
+                {
+                    continue;
+                }
+                Building_OutfitStand stand = cell.GetFirstThing<Building_OutfitStand>(map);
+                if (stand == null)
+                {
+                    continue;
+                }
+
+                List<Thing> held = (stand as IThingHolder)?.GetDirectlyHeldThings()?.ToList();
+                if (held == null || held.Count == 0)
+                {
+                    continue;
+                }
+
+                // Shirts read as dress white on every stand; everything else
+                // takes the stand's own colour — black tie for the men, one
+                // frock apiece for the women.
+                Commit(stand, held.Where(IsShirt).ToList(), DressWhite);
+                Color rest = i % 2 == 0 ? BlackTie : Frocks[frock++ % Frocks.Length];
+                Commit(stand, held.Where(t => !IsShirt(t)).ToList(), rest);
+                painted++;
+            }
+
+            Messages.Message(
+                painted == 0
+                    ? "No wardrobe stands here — click the stage's south-west corner."
+                    : $"Painted {painted} stands through the picker's own commit path.",
+                painted == 0 ? MessageTypeDefOf.RejectInput : MessageTypeDefOf.TaskCompletion,
+                historical: false);
+        }
+
+        /// <summary>
+        /// Pin the map to local noon under clear weather, so two captures taken
+        /// minutes apart light identically.
+        ///
+        /// WHY NOT ForceSetCurSkyGlow: it writes curSkyGlowInt, and
+        /// SkyManagerUpdate recomputes that from CurrentSkyTarget() on the very
+        /// next frame. The glow is derived from the clock, so the clock is the
+        /// only durable lever.
+        ///
+        /// NOON, NOT DUSK, and it is a real trade. Shadow strength is
+        /// <c>Clamp01(|CurCelestialSunGlow - 0.6| / 0.15)</c>, so it falls to
+        /// ZERO at glow 0.6 — which is dusk, and would give perfectly flat
+        /// light. Dusk also drags the whole palette orange and dim, which is
+        /// worse for showing colour than a crisp shadow is. Noon gives the
+        /// brightest, most neutral ambient; the small shadow each stand casts
+        /// reads as depth rather than as a defect.
+        ///
+        /// The band that spoiled the first capture was never the sun: it was
+        /// the roof edge of a neighbouring building. Site the pad clear of
+        /// roofed structures and it does not arise.
+        /// </summary>
+        internal static void PinLighting(Map map)
+        {
+            float dayPercent = GenLocalDate.DayPercent(map);
+            int intoDay = (int)(dayPercent * GenDate.TicksPerDay);
+            int noon = GenDate.TicksPerDay / 2;
+            int delta = noon - intoDay;
+            if (delta < 0)
+            {
+                delta += GenDate.TicksPerDay;
+            }
+            Find.TickManager.DebugSetTicksGame(Find.TickManager.TicksGame + delta);
+
+            if (map.weatherManager != null && WeatherDefOf.Clear != null)
+            {
+                map.weatherManager.TransitionTo(WeatherDefOf.Clear);
+                map.weatherManager.curWeatherAge = 999999;
+            }
+        }
+
+        internal static bool IsShirt(Thing t)
+        {
+            return t?.def?.defName == "Apparel_ShirtRuffle";
+        }
+
+        internal static void Commit(Building_OutfitStand stand, List<Thing> items, Color colour)
+        {
+            if (items == null || items.Count == 0)
+            {
+                return;
+            }
+            new Dialog_StandColorPicker(stand, items).AcceptForTest(colour);
+        }
+
+        /// <summary>
+        /// Drop one already-dyed garment on the floor as a dropper source.
+        /// Loose on the ground rather than in a container: the dropper resolves
+        /// the whole CELL and menus what it finds, so a bare floor tile with
+        /// one item on it is the least ambiguous target there is.
+        /// </summary>
+        internal static void Reference(Map map, IntVec3 cell, string defName, string stuffName, Color tint)
+        {
+            Apparel garment = Garment(defName, stuffName);
+            if (garment == null)
+            {
+                return;
+            }
+            ColorForcer.ForceSetColor(garment, tint);
+            GenSpawn.Spawn(garment, cell, map);
+        }
+
+        internal static void Dress(Building_OutfitStand stand, string defName, string stuffName)
+        {
+            Apparel garment = Garment(defName, stuffName);
+            if (garment != null)
+            {
+                stand.AddApparel(garment);
+            }
+        }
+
+        /// <summary>
+        /// Undyed and style-cleared. The stuff is named rather than taken
+        /// from <c>GenStuff.DefaultStuffFor</c>, which is the whole point of
+        /// this stage: the default would put every garment in the same
+        /// material and the row would lose the base-colour variation the
+        /// paired shot depends on.
+        ///
+        /// Colour goes through <see cref="ColorForcer"/>, never
+        /// <c>SetColor</c> — the comp no-ops on exact white for an undyed
+        /// item, so a direct write leaves it inactive and the garment paints
+        /// wrong later.
+        /// </summary>
+        internal static Apparel Garment(string defName, string stuffName)
+        {
+            ThingDef def = DefDatabase<ThingDef>.GetNamedSilentFail(defName);
+            if (def == null)
+            {
+                return null;
+            }
+
+            ThingDef stuff = null;
+            if (def.MadeFromStuff)
+            {
+                // A stuff sits in SEVERAL categories, so the test is whether
+                // any of them is one this def accepts — not whether its first
+                // one happens to match.
+                stuff = DefDatabase<ThingDef>.GetNamedSilentFail(stuffName);
+                if (stuff?.stuffProps?.categories == null
+                    || !stuff.stuffProps.categories.Any(c => def.stuffCategories.Contains(c)))
+                {
+                    stuff = GenStuff.DefaultStuffFor(def);
+                }
+            }
+
+            Apparel garment = (Apparel)ThingMaker.MakeThing(def, stuff);
+            garment.SetStyleDef(null);
+            garment.overrideGraphicIndex = 0;
+            ColorForcer.ResetToNatural(garment);
+            return garment;
+        }
+    }
+}
+#endif

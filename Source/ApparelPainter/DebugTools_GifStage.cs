@@ -14,9 +14,10 @@ namespace ApparelPainter
     /// whole footage set on a uniform steel-tile pad: a row of undyed
     /// outfit stands (the paint-me canvas), two Armor Racks, the sbz
     /// hanger + display shelves stocked with dusters, shirts and cloth
-    /// stacks, and two model pawns — one dressed in colour as a dropper
-    /// source. Everything faces the camera; the pad is unroofed so
-    /// daylight does the lighting.
+    /// stacks, two model pawns — one dressed in colour as a dropper
+    /// source — and two carpet rugs as the dropper's floor targets.
+    /// Everything faces the camera; the pad is unroofed so daylight does
+    /// the lighting.
     ///
     /// DESTRUCTIVE by design (it clears its footprint outright) and never
     /// ships: the whole file compiles out of Release. Integration defs
@@ -122,6 +123,10 @@ namespace ApparelPainter
             Wear(john, Garment("Apparel_CollarShirt"));
             Wear(john, Garment("Apparel_Pants"));
 
+            // -- rugs: born-coloured carpets, the dropper's floor beat ----
+            Rug(map, origin + new IntVec3(4, 0, 0), "CarpetBurgundy");
+            Rug(map, origin + new IntVec3(8, 0, 0), "CarpetGreenForest");
+
             Messages.Message("Gif stage built.", MessageTypeDefOf.TaskCompletion, historical: false);
         }
 
@@ -165,6 +170,25 @@ namespace ApparelPainter
             {
                 GenSpawn.Spawn(item, cells[i % cells.Count], storage.Map);
                 i++;
+            }
+        }
+
+        /// <summary>Lay a 3x2 rug of a generated carpet def — "Carpet" +
+        /// a structural ColorDef name minus its "Structure_" prefix
+        /// (TerrainDefGenerator_Carpet's join). Born-coloured terrain, no
+        /// paint call: the dropper reads it through ResolveFloorColor's
+        /// unpainted branch, exactly what a player's built carpet is.
+        /// Skips silently if the def set changes.</summary>
+        internal static void Rug(Map map, IntVec3 sw, string carpetDefName)
+        {
+            TerrainDef carpet = DefDatabase<TerrainDef>.GetNamedSilentFail(carpetDefName);
+            if (carpet == null)
+            {
+                return;
+            }
+            foreach (IntVec3 cell in new CellRect(sw.x, sw.z, 3, 2))
+            {
+                map.terrainGrid.SetTerrain(cell, carpet);
             }
         }
 
