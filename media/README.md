@@ -433,6 +433,18 @@ finally landed as the untitled window crops
 (media/gallery-wardrobe-before/after.png). Masters in
 `~/Movies/apparel-painter-dusk-2026-08-29/take1-jacketless/`.
 
+RE-FRAMED HALF A TILE UP (2026-08-30, principal: the pair sat too
+close to the bottom edge): same masters, the 5×4 window drops half a
+tile in screen space — `-crop 781x625+312+312` (y 234 → 312) — so the
+stands gain a full clean tile below their bases and both horizontal
+edges now land ON grid lines (the edge rule's other legal cut; the
+old frame used panel midlines). Overlay reused as-is; morph chain,
+palettegen diff + bayer and gifsicle lossy 60 identical; outputs land
+at the same budgets (flip 242 KB, static 308 KB) and About/Preview.png
+keeps its GIF89a bytes. Intermediates in
+`take1-jacketless/recenter-halfup/`; the 08-29 framing's candidates
+stay beside the masters for lineage.
+
 ### cards/card-faq.png (2026-08-29)
 
 Text card, no capture: the SIBLING's card-faq export page with our
