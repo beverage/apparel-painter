@@ -7,17 +7,23 @@ folder verbatim: `media/`, `Source/`, `.git` and all).
 
 ## Production state
 
-The page copy is written (`steam-description.bbcode`, validator-clean via
-`devtools/bbcode-preview.py`, which also hard-fails past Steam's 8,000
-plain-character limit). Four `(TODO ...)` markers in it are the capture
-slots. Capture is MANUAL — the rimbridgeserver automation attempt was
-abandoned as too heavyweight (BL-079, 2026-08-25); nothing here drives
-the game.
+CAMPAIGN COMPLETE (2026-08-30): the page copy
+(`steam-description.bbcode`) is validator-clean with zero TODO markers
+(`devtools/bbcode-preview.py`, which also hard-fails past Steam's 8,000
+plain-character limit), and every canonical asset is committed. Capture
+ended up BRIDGE-DRIVEN, reversing the note that used to sit here: the
+2026-08-25 abandonment was itself reversed once typed input landed
+(2026-08-29), and the finals were staged, framed and shot through
+Andreas Pardeike's RimBridgeServer automation bridge, scripted by the
+drivers in `devtools/bridge/`, with a locally extended build supplying
+the typed input for the picker card. Each recipe below names the driver
+that produced its cut.
 
 The pipeline:
 
-1. `devtools/run-scene.sh --media --alongside` — isolated instance,
-   Media build (SCENES stages compiled in, no ECR in the frame).
+1. `devtools/run-scene.sh --media --bridge --alongside` — isolated
+   instance, Media build (SCENES stages compiled in, no ECR in the
+   frame), bridge on 127.0.0.1:5175 with the token printed at launch.
 2. Dev mode → Debug actions → Apparel Painter → build a stage, then
    click its south-west corner cell:
    - **Gif stage** (22×12): the busy full-surface set — six undyed
@@ -31,16 +37,18 @@ The pipeline:
      commits the throne-room palette through the picker's own accept
      path. A before/after pair is two captures with one debug action
      between them.
-3. OBS against the 2560×1440 display; masters land in `~/Movies`.
-4. Cut with shift-change's `devtools/footage.sh`. Every treatment (gif
-   ramps, scene cards, UI cards, Preview stills) is documented in
-   `shift-change/media/README.md`; `RimWordFont.ttf` lives at
-   `~/Downloads/RimWordFont.ttf`.
+3. Drive the shot with its `devtools/bridge/` script (stepped,
+   readback-verified captures; OBS against the display only for
+   continuous beats). Masters land in `~/Movies`.
+4. Cut with shift-change's `devtools/footage.sh`, or `devtools/make-ab.sh`
+   for A/B crossfades. Every treatment (gif ramps, scene cards, UI cards,
+   Preview stills) is documented in `shift-change/media/README.md`;
+   `RimWordFont.ttf` lives at `~/Downloads/RimWordFont.ttf`.
 
 **Record every cut's parameters in this file at the time.** The sibling
 lost a gif's recipe by skipping this and paid a re-derivation.
 
-## Shot list
+## Shot list (historical: the plan as filed, every row since shot; the recipes below are canonical)
 
 | # | Asset | Fills | How |
 |---|---|---|---|

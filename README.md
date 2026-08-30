@@ -167,6 +167,9 @@ and contains all of it, so none of this has to be taken on trust.
 is a screenshot with a title on it. Every gif and card on the store page is a
 screenshot or screen recording of RimWorld running this mod. The sets were
 built by the debug fixtures in `Source/`, so they rebuild on demand, and
+the shots were driven through
+[RimBridgeServer](https://github.com/pardeike/RimBridgeServer)'s automation
+bridge by the scripts in `devtools/bridge/`.
 [media/README.md](media/README.md) records the crops, timings and pipeline
 that produced each asset. No diffusion model and no image pipeline are
 involved anywhere.
@@ -216,6 +219,11 @@ bulk) and is the reason this mod could stay narrow. khamenman's
 [Armor Racks](https://steamcommunity.com/sharedfiles/filedetails/?id=1875828205)
 ships its source code, which is what let its adapter be built on fact rather
 than guesswork.
+
+[RimBridgeServer](https://github.com/pardeike/RimBridgeServer) by Andreas
+Pardeike (brrainz) drove the game for every piece of footage on this page:
+the sets were staged, framed and shot through its automation bridge, with a
+locally extended build supplying the typed input for the picker card.
 
 ## License
 
