@@ -131,9 +131,9 @@ matter, and there is no patch for another mod to collide with.
 - **[sbz] Neat Storage, Reel's Expanded Storage and other Adaptive Storage
   Framework mods** show painted items immediately. ASF bakes its shelf
   rendering, and this mod tells its renderer to re-bake after every paint.
-- **LWM's Deep Storage** converts other mods' storage into its own units by
-  default; the Paint tab survives the conversion and keeps its place beside
-  LWM's Inventory tab.
+- **[LWM's Deep Storage](https://steamcommunity.com/sharedfiles/filedetails/?id=3532608331)**
+  converts other mods' storage into its own units by default; the Paint tab
+  survives the conversion and keeps its place beside LWM's Inventory tab.
 
 If a storage or display mod you use does not show the tab, or shows stale
 colors after painting, that is a bug worth reporting; name the mod.
