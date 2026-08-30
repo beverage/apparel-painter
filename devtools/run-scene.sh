@@ -8,17 +8,31 @@
 #   devtools/run-scene.sh --alongside  # start it BESIDE a running game
 #   devtools/run-scene.sh --full       # your own mod list, copied (not swapped)
 #   devtools/run-scene.sh --media      # the filming build (SCENES, no ECR)
+#   devtools/run-scene.sh --bridge     # + RimBridgeServer for scripted capture
 #
 # Builds DEBUG by default — the stage only exists under SCENES, and Release
 # does not define it. `--media` selects the Media config: same stage, no ECR
 # instrumentation in the frame.
 #
-# The scene mod list starts from shift-change's and swaps in what this mod's
-# footage needs: ASF + sbz Neat Storage (the ASF shelf skins), Armor Racks,
-# and Royalty — the wardrobe stage dresses its stands in Royalty formal wear
-# and refuses to build without it. Shift Change itself is deliberately
-# absent — its gizmos land on the very outfit stands being filmed and would
-# photobomb every take.
+# The scene mod list is RimSort's "Shift Change Studio" loadout — the
+# sibling's filming kit (Camera+, RimHUD, facial animation, VE apparel and
+# textures, all five DLCs, and the stand/storage integrations: OSP, Armor
+# Racks, ASF + sbz), taken verbatim with exactly ONE swap: Shift Change
+# out, this mod in its slot. Its gizmos land on the very outfit stands
+# being filmed and would photobomb every take. The wardrobe stage needs
+# Royalty; the studio list carries it.
+#
+# --bridge appends the RimBridgeServer FORK (mrbeverage.rimbridgeserverfork,
+# Mods/RimBridgeServerFork) for scripted capture — screenshots, stepped
+# sequences, and since 2026-08-29 typed text entry and key presses (operating
+# manual: rimworld-docs/rimbridge-input-tools-handoff.md; synthetic
+# right-click inside window bodies is the one remaining gap). The port is
+# FORCED per-instance through the GABS env handshake (GABP_SERVER_PORT +
+# GABP_TOKEN, read by Lib.GAB.GabpServerBuilder): the LIVE game carries the
+# bridge too and its standalone default owns 5174 — a bind collision found
+# the hard way — so scene bridges run on 5175 with a fixed token, both
+# printed at launch. Standalone-mode logs still announce port+token, and
+# the devtools/bridge/ drivers accept either a log path or port+token.
 #
 # ISOLATION and the no-touching-a-running-game rule are run-harness.sh's,
 # verbatim. Do not reach for pkill — a running instance is somebody's colony.
@@ -34,17 +48,39 @@ PROC="RimWorld by Ludeon Studios"
 
 SCENE_MODS=(
   brrainz.harmony
+  ilyvion.loadingprogress
+  taranchuk.fastergameloading
   ludeon.rimworld
   ludeon.rimworld.royalty
+  ludeon.rimworld.ideology
+  ludeon.rimworld.biotech
+  ludeon.rimworld.anomaly
   ludeon.rimworld.odyssey
   adaptive.storage.framework
-  sbz.NeatStorage
+  oskarpotocki.vanillafactionsexpanded.core
+  nals.facialanimation
+  sbz.neatstorage
+  lwm.deepstorage
   khamenman.armorracks
+  brrainz.cameraplus
+  void.charactereditor
+  dracoix.doormat.r12a
+  khamenman.outfitstandsplus
+  jaxe.rimhud
+  memegoddess.tdfindlib
+  memegoddess.tdsbugfixes
+  vanillaexpanded.vappe
+  vanillaexpanded.vtexe
+  vanillaexpanded.vtexvariations
+  ih.clean.textures
+  memegoddess.ctrlf
   mrbeverage.apparelpainter
+  vanillaexpanded.vtexe.facialanims
 )
 
 FULL=0
 ALONGSIDE=0
+BRIDGE=0
 CONFIG=Debug
 for arg in "$@"
 do
@@ -52,9 +88,21 @@ do
     --full) FULL=1 ;;
     --alongside) ALONGSIDE=1 ;;
     --media) CONFIG=Media ;;
-    *) printf 'unknown option: %s (--full | --alongside | --media)\n' "$arg" >&2; exit 2 ;;
+    --bridge) BRIDGE=1 ;;
+    *) printf 'unknown option: %s (--full | --alongside | --media | --bridge)\n' "$arg" >&2; exit 2 ;;
   esac
 done
+
+if [ "$BRIDGE" = "1" ] && [ "$FULL" = "1" ]
+then
+  printf 'error: --bridge builds the scene list; it cannot ride the copied live list\n' >&2
+  exit 2
+fi
+
+if [ "$BRIDGE" = "1" ]
+then
+  SCENE_MODS+=(mrbeverage.rimbridgeserverfork)
+fi
 
 die() { printf 'error: %s\n' "$1" >&2; exit 1; }
 
@@ -100,6 +148,9 @@ else
     done
     printf '  </activeMods>\n  <knownExpansions>\n'
     printf '    <li>ludeon.rimworld.royalty</li>\n'
+    printf '    <li>ludeon.rimworld.ideology</li>\n'
+    printf '    <li>ludeon.rimworld.biotech</li>\n'
+    printf '    <li>ludeon.rimworld.anomaly</li>\n'
     printf '    <li>ludeon.rimworld.odyssey</li>\n'
     printf '  </knownExpansions>\n</ModsConfigData>\n'
   } > "$SCENEDATA/Config/ModsConfig.xml"
@@ -118,6 +169,12 @@ fi
   printf '</PrefsData>\n'
 } > "$SCENEDATA/Config/Prefs.xml"
 
+if [ "$BRIDGE" = "1" ]
+then
+  export GABP_SERVER_PORT=5175
+  export GABP_TOKEN=apparelpainter-scene-bridge
+fi
+
 printf 'save data: %s\n' "$SCENEDATA"
 printf 'launching…\n'
 
@@ -133,4 +190,9 @@ fi
 
 printf 'pid: %s (leave it to the player; this script does not manage it)\n' "$GAME_PID"
 printf 'log: %s\n' "$LOG"
+if [ "$BRIDGE" = "1" ]
+then
+  printf 'bridge: 127.0.0.1:%s  token %s\n' "$GABP_SERVER_PORT" "$GABP_TOKEN"
+  printf 'bridge: devtools/bridge/gabp.py %s %s   # lists the tool surface\n' "$GABP_SERVER_PORT" "$GABP_TOKEN"
+fi
 printf 'in-game: dev mode is pre-seeded. Debug actions → Apparel Painter → Build gif stage or Build wardrobe stage, then click the stage south-west corner.\n'

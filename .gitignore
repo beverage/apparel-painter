@@ -23,6 +23,9 @@ CLAUDE.local.md
 obj/
 bin/
 
+# Python bytecode from the bridge drivers (py_compile checks drop these)
+__pycache__/
+
 # Harness scratch: the isolated save-data folder run-harness.sh creates.
 dist/
 

@@ -23,8 +23,11 @@ namespace ApparelPainter
     /// they do not share a footprint.
     ///
     /// THE WARDROBE mirrors the principal's throne-room changing room:
-    /// every stand carries a formal shirt, the men add a vest and a top hat,
-    /// the women a corset, a ladies hat and a prestige robe.
+    /// every stand carries a formal shirt, the men add a vest and a top
+    /// hat, the women a corset, a ladies hat and a prestige robe. Every
+    /// garment is Royalty — the VAE suit jacket was CUT 2026-08-29
+    /// (principal: hero shots must not depend on third-party apparel);
+    /// the black-tie vest carries the jacket read.
     ///
     /// TWO STUFFS, ON PURPOSE. Everything is undyed, so each garment shows
     /// its material's natural colour and nothing else — that is the "before"
@@ -39,7 +42,7 @@ namespace ApparelPainter
     /// eight-stand shot is the same row widened. One fixture, both shots,
     /// no second build.
     ///
-    /// ROYALTY IS REQUIRED for all six garments (they live in
+    /// ROYALTY IS REQUIRED for the formal garments (they live in
     /// Data/Royalty/Defs/ThingDefs_Misc/Apparel_Royal.xml). The gif stage
     /// degrades to Core wear when an integration is missing; this one has
     /// nothing to degrade to, so it says so and builds nothing.
@@ -58,7 +61,7 @@ namespace ApparelPainter
         internal const int PadDepth = 64;
         internal const int StandCount = 8;
 
-        /// <summary>Worn against the body: shirt, vest, corset.</summary>
+        /// <summary>Shirt, vest, corset.</summary>
         internal const string Inner = "Synthread";
 
         /// <summary>Outer and headwear: hats, robe.</summary>
@@ -75,6 +78,13 @@ namespace ApparelPainter
         // "correct" it darker.
         internal static readonly Color BlackTie = new Color(0.22f, 0.22f, 0.27f);
         internal static readonly Color DressWhite = new Color(0.95f, 0.94f, 0.92f);
+
+        /// <summary>RETIRED from the wardrobe rig with the VAE jacket
+        /// (2026-08-29): the men's vest now commits BlackTie, since with
+        /// no jacket over it the vest IS the suit read. Kept as the
+        /// palette's grey — the core-loop saved band still carries its
+        /// hex (5C5C69).</summary>
+        internal static readonly Color WaistcoatGrey = new Color(0.36f, 0.36f, 0.41f);
 
         /// <summary>One frock per woman, in row order, matching the live room.</summary>
         internal static readonly Color[] Frocks =
@@ -134,6 +144,14 @@ namespace ApparelPainter
             }
 
             GenDebug.ClearArea(pad, map);
+            // Kill the fog of war for the WHOLE map, not just the pad:
+            // reveal spreads from wherever the quicktest colonists happened
+            // to spawn, and an unlucky world leaves half a frame in
+            // dimmed-unseen shading (caught on camera 2026-08-30 — the
+            // armor rack sat in the falloff). Every driver builds this
+            // stage for its ambient field, so this is the one place to fix
+            // all shoots at once.
+            map.fogGrid.ClearAllFog();
             TerrainDef steelTile = DefDatabase<TerrainDef>.GetNamedSilentFail("MetalTile")
                 ?? TerrainDefOf.PavedTile;
             foreach (IntVec3 cell in pad)
@@ -235,12 +253,19 @@ namespace ApparelPainter
                     continue;
                 }
 
-                // Shirts read as dress white on every stand; everything else
-                // takes the stand's own colour — black tie for the men, one
-                // frock apiece for the women.
+                // Shirts read as dress white on every stand. The men wear
+                // the Stresemann — dark grey waistcoat under black jacket
+                // and hat — and the women take one frock apiece.
                 Commit(stand, held.Where(IsShirt).ToList(), DressWhite);
-                Color rest = i % 2 == 0 ? BlackTie : Frocks[frock++ % Frocks.Length];
-                Commit(stand, held.Where(t => !IsShirt(t)).ToList(), rest);
+                if (i % 2 == 0)
+                {
+                    Commit(stand, held.Where(t => !IsShirt(t)).ToList(), BlackTie);
+                }
+                else
+                {
+                    Commit(stand, held.Where(t => !IsShirt(t)).ToList(),
+                        Frocks[frock++ % Frocks.Length]);
+                }
                 painted++;
             }
 
@@ -252,6 +277,34 @@ namespace ApparelPainter
                 historical: false);
         }
 
+        /// <summary>Hour the dusk action pins to. Glow crosses 0.6 near here
+        /// (shadowless, warm cast); nudge it live via Dev → TweakValues
+        /// between takes, then re-run the dusk action — the pin is a clock
+        /// write and does not track this field on its own.</summary>
+        [TweakValue("ApparelPainter", 12f, 23.5f)]
+        internal static float DuskHour = 19f;
+
+        [DebugAction("Apparel Painter", "Pin lighting: noon", false, false,
+            actionType = DebugActionType.Action,
+            allowedGameStates = AllowedGameStates.PlayingOnMap)]
+        internal static void PinLightingNoon()
+        {
+            PinLighting(Find.CurrentMap);
+            Messages.Message("Lighting pinned: noon, clear.",
+                MessageTypeDefOf.TaskCompletion, historical: false);
+        }
+
+        [DebugAction("Apparel Painter", "Pin lighting: dusk", false, false,
+            actionType = DebugActionType.Action,
+            allowedGameStates = AllowedGameStates.PlayingOnMap)]
+        internal static void PinLightingDusk()
+        {
+            PinLighting(Find.CurrentMap, DuskHour);
+            Messages.Message(
+                $"Lighting pinned: dusk ({DuskHour:0.#}h), clear. TweakValue ApparelPainter.DuskHour dials it.",
+                MessageTypeDefOf.TaskCompletion, historical: false);
+        }
+
         /// <summary>
         /// Pin the map to local noon under clear weather, so two captures taken
         /// minutes apart light identically.
@@ -261,13 +314,15 @@ namespace ApparelPainter
         /// next frame. The glow is derived from the clock, so the clock is the
         /// only durable lever.
         ///
-        /// NOON, NOT DUSK, and it is a real trade. Shadow strength is
-        /// <c>Clamp01(|CurCelestialSunGlow - 0.6| / 0.15)</c>, so it falls to
-        /// ZERO at glow 0.6 — which is dusk, and would give perfectly flat
-        /// light. Dusk also drags the whole palette orange and dim, which is
-        /// worse for showing colour than a crisp shadow is. Noon gives the
-        /// brightest, most neutral ambient; the small shadow each stand casts
-        /// reads as depth rather than as a defect.
+        /// NOON is the BUILD default, and the trade is real. Shadow strength
+        /// is <c>Clamp01(|CurCelestialSunGlow - 0.6| / 0.15)</c>, so it falls
+        /// to ZERO at glow 0.6 — dusk — giving perfectly flat light, and dusk
+        /// drags the whole palette orange and dim. Noon gives the brightest,
+        /// most neutral ambient: right for stills that must show true fabric
+        /// colour. The principal chose that dusk cast as the MOOD for the A/B
+        /// gifs (2026-08-27), so the pin is re-aimable after build: the
+        /// "Pin lighting" debug actions re-pin the clock to noon or to
+        /// <see cref="DuskHour"/> without rebuilding the stage.
         ///
         /// The band that spoiled the first capture was never the sun: it was
         /// the roof edge of a neighbouring building. Site the pad clear of
@@ -275,10 +330,17 @@ namespace ApparelPainter
         /// </summary>
         internal static void PinLighting(Map map)
         {
+            PinLighting(map, 12f);
+        }
+
+        /// <summary>Re-aim the pin at any hour; the weather stays clamped
+        /// clear either way.</summary>
+        internal static void PinLighting(Map map, float hour)
+        {
             float dayPercent = GenLocalDate.DayPercent(map);
             int intoDay = (int)(dayPercent * GenDate.TicksPerDay);
-            int noon = GenDate.TicksPerDay / 2;
-            int delta = noon - intoDay;
+            int target = (int)(hour / 24f * GenDate.TicksPerDay);
+            int delta = target - intoDay;
             if (delta < 0)
             {
                 delta += GenDate.TicksPerDay;
@@ -295,6 +357,11 @@ namespace ApparelPainter
         internal static bool IsShirt(Thing t)
         {
             return t?.def?.defName == "Apparel_ShirtRuffle";
+        }
+
+        internal static bool IsVest(Thing t)
+        {
+            return t?.def?.defName == "Apparel_VestRoyal";
         }
 
         internal static void Commit(Building_OutfitStand stand, List<Thing> items, Color colour)

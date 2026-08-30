@@ -173,6 +173,56 @@ namespace ApparelPainter
             }
         }
 
+        /// <summary>Tick the fill's defs in the spawned storage's own
+        /// settings, BEFORE spawning the fill. A freshly spawned sbz or
+        /// LWM piece accepts NOTHING — their defaultStorageSettings ship
+        /// an empty filter — and storage renderers arrange only ACCEPTED
+        /// stock: an unconfigured fill draws as a loose centre-of-cell
+        /// pile instead of the shelf's neat layout (principal caught it
+        /// on the integrations card candidate, 2026-08-29). The staging
+        /// rule already said it: storage must actually hold its fill —
+        /// acceptance included.</summary>
+        internal static void Allow(Building_Storage storage, params string[] defNames)
+        {
+            if (storage?.settings?.filter == null)
+            {
+                return;
+            }
+            foreach (string name in defNames)
+            {
+                ThingDef def = DefDatabase<ThingDef>.GetNamedSilentFail(name);
+                if (def != null)
+                {
+                    storage.settings.filter.SetAllow(def, true);
+                }
+            }
+        }
+
+        /// <summary>Park the open colour picker's top-left at the clicked
+        /// cell's screen position. Composition control for the shoot
+        /// drivers: the window defaults to centre and the bridge has no
+        /// window-drag tool, so this is the deterministic lever —
+        /// execute_debug_action already passes a cell. Silent on success
+        /// (a message line would photobomb the very frame being staged);
+        /// loud when no picker is open.</summary>
+        [DebugAction("Apparel Painter", "Park picker window here", false, false,
+            actionType = DebugActionType.ToolMap,
+            allowedGameStates = AllowedGameStates.PlayingOnMap)]
+        internal static void ParkPickerWindowHere()
+        {
+            Dialog_StandColorPicker picker =
+                Find.WindowStack.WindowOfType<Dialog_StandColorPicker>();
+            if (picker == null)
+            {
+                Messages.Message("No picker window open to park.",
+                    MessageTypeDefOf.RejectInput, historical: false);
+                return;
+            }
+            Vector2 ui = UI.MouseCell().ToVector3Shifted().MapToUIPosition();
+            picker.windowRect.x = ui.x;
+            picker.windowRect.y = ui.y;
+        }
+
         /// <summary>Lay a 3x2 rug of a generated carpet def — "Carpet" +
         /// a structural ColorDef name minus its "Structure_" prefix
         /// (TerrainDefGenerator_Carpet's join). Born-coloured terrain, no
