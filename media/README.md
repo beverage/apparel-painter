@@ -443,7 +443,10 @@ palettegen diff + bayer and gifsicle lossy 60 identical; outputs land
 at the same budgets (flip 242 KB, static 308 KB) and About/Preview.png
 keeps its GIF89a bytes. Intermediates in
 `take1-jacketless/recenter-halfup/`; the 08-29 framing's candidates
-stay beside the masters for lineage.
+stay beside the masters for lineage. The GALLERY PAIR followed the
+same day (principal): media/gallery-wardrobe-before/after.png are the
+untitled crops of the NEW window, so every Workshop surface built on
+the pair scene shares one framing.
 
 ### cards/card-faq.png (2026-08-29)
 
