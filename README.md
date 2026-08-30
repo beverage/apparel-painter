@@ -148,9 +148,9 @@ RimWorld's config folder, beside your keybindings.
 
 ## Status
 
-Not yet on the Steam Workshop; the first release is being prepared now. The
-mod has been exercised in a live colony throughout development, and the
-engine and mod surfaces it leans on are covered by an automated harness
+Live on the [Steam Workshop](https://steamcommunity.com/sharedfiles/filedetails/?id=3792795811).
+Exercised in a live colony throughout development, and the engine and mod
+surfaces it leans on are covered by an automated harness
 (`devtools/run-harness.sh`) that runs before every release.
 
 ## How this is built
