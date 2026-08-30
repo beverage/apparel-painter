@@ -305,6 +305,28 @@ namespace ApparelPainter
                 MessageTypeDefOf.TaskCompletion, historical: false);
         }
 
+        /// <summary>Advance the pinned clock by one hour, re-clamping the
+        /// weather on the way. The sweep driver walks noon to past dusk with
+        /// this so a whole hour curve comes off ONE world roll — the cast at a
+        /// given hour is a function of the tile's latitude and the day of year
+        /// (GenCelestial.CelestialSunGlowPercent), and a relaunch re-rolls
+        /// both. That is why judging the cast BETWEEN takes never converged:
+        /// each take was a different planet. Sweep within a take instead.
+        /// Hour is read back off DayPercent, so it needs no new engine API and
+        /// wraps past midnight for free (PinLighting's delta stays positive).
+        /// </summary>
+        [DebugAction("Apparel Painter", "Pin lighting: +1 hour", false, false,
+            actionType = DebugActionType.Action,
+            allowedGameStates = AllowedGameStates.PlayingOnMap)]
+        internal static void PinLightingNextHour()
+        {
+            Map map = Find.CurrentMap;
+            PinLighting(map, GenLocalDate.DayPercent(map) * 24f + 1f);
+            Messages.Message(
+                $"Lighting pinned: {GenLocalDate.DayPercent(map) * 24f:0.0}h, clear.",
+                MessageTypeDefOf.TaskCompletion, historical: false);
+        }
+
         /// <summary>
         /// Pin the map to local noon under clear weather, so two captures taken
         /// minutes apart light identically.
