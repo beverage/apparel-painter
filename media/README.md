@@ -70,19 +70,24 @@ risk for nothing). Consequence: the page renders only once media/ is
 committed, pushed, and the repo is public — the same gate the banners
 always had. Re-run `devtools/bbcode-preview.py` after every edit.
 
-GALLERY AND PREVIEWFILE ARE TWO MECHANISMS (corrected 2026-08-28 by the
-principal reading NL FA's live page): `previewfile` — what SteamCMD's
-vdf uploads — is the SIDEBAR image on the item page and the browse-grid
-thumbnail; NL FA's is a designed static card. The big animating hero at
-the top of the page is the GALLERY: "additional previews", added through
-the item page's owner controls after upload (a manual publish-tail
-step). Gallery slots keep gif format and play when selected (verified:
-NL FA's slots serve `image/gif`, e.g. `…_preview_Blink.gif`, 905 KB —
-under the same ~1 MB per-file cap); the thumbnail strip stays static.
-A page with NO gallery promotes the previewfile into the big area,
-which is what makes the two easy to conflate. For this mod: the
-animated flip is GALLERY SLOT 1; the static titled card is previewfile
-AND About/Preview.png.
+GALLERY AND PREVIEWFILE ARE TWO MECHANISMS (2026-08-28, refined
+2026-08-30): `previewfile` — what the uploader ships from
+About/Preview.png — is the SIDEBAR image on the item page and the
+browse-grid thumbnail. The gallery ("additional previews") is added
+through the item page's owner controls after upload, a manual
+publish-tail step; gallery slots keep gif format and play when
+selected (NL FA's slots serve `image/gif`, 905 KB, under the ~1 MB
+per-file cap). A page with NO gallery promotes the previewfile into
+the big area, which is what makes the two easy to conflate.
+**The previewfile itself can ANIMATE**: the 08-28 reading called NL
+FA's previewfile a static card, but its shipped About/Preview.png is
+GIF89a bytes under the .png name (verified 2026-08-30 by magic bytes;
+full mechanism in gamedata/workshop-publishing.md) — nothing validates
+bytes against extension, and clients content-sniff and animate,
+including in the browse grid. For this mod (principal, 2026-08-30):
+About/Preview.png IS the animated flip's GIF bytes (242 KB); the
+static titled card lives at media/preview-static.png and is the
+natural gallery-slot-1 candidate.
 
 ## Recipes
 
