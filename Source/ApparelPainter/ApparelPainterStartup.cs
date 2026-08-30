@@ -56,8 +56,45 @@ namespace ApparelPainter
                 }
                 if (!def.inspectorTabs.Contains(tabType))
                 {
-                    def.inspectorTabs.Add(tabType);
-                    def.inspectorTabsResolved.Add(InspectTabManager.GetSharedInstance(tabType));
+                    // CONTENTS BEFORE PAINT, on every family (principal,
+                    // 2026-08-28: what a container holds reads before what
+                    // you can do to it). Tabs draw right-to-left from this
+                    // list, and the two families reach the screen by
+                    // different routes: outfit stands carry their Contents
+                    // tab ON the def, so Paint must insert BEFORE it to
+                    // land left of it; Building_Storage families get their
+                    // Contents tab dynamically AFTER the def list, so a
+                    // plain append already displays the same way. Both
+                    // routes converge on "Contents | Paint | Storage".
+                    // (Armor Racks' own tab name is unverified against the
+                    // "Contents" match — check its display order when that
+                    // integration gets its own shot. LWM's Deep Storage
+                    // def-lists its contents tab as
+                    // ITab_DeepStorage_Inventory, hence the "Inventory"
+                    // match — added 2026-08-29 for the integrations shot.)
+                    int at = def.inspectorTabs.FindIndex(
+                        t => t != null && (t.Name.Contains("Contents")
+                            || t.Name.Contains("Inventory")));
+                    if (at >= 0)
+                    {
+                        def.inspectorTabs.Insert(at, tabType);
+                    }
+                    else
+                    {
+                        def.inspectorTabs.Add(tabType);
+                    }
+                    int atResolved = def.inspectorTabsResolved.FindIndex(
+                        t => t != null && t.GetType().Name.Contains("Contents"));
+                    if (atResolved >= 0)
+                    {
+                        def.inspectorTabsResolved.Insert(
+                            atResolved, InspectTabManager.GetSharedInstance(tabType));
+                    }
+                    else
+                    {
+                        def.inspectorTabsResolved.Add(
+                            InspectTabManager.GetSharedInstance(tabType));
+                    }
                 }
             }
         }
