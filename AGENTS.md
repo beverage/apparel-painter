@@ -13,6 +13,9 @@ ModSettings (config file), so mid-save removal stays clean.
 | Doc | Contents |
 |---|---|
 | [README.md](README.md) | what the mod does, for players |
+| [docs/DESIGN.md](docs/DESIGN.md) | engine interfaces and why each took its shape — injection, adapter seam, bake sites, comp warts, layout mirror, droppers |
+| [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) | build, configurations, engine navigation, hot reload, scenes, upload staging, file map |
+| [docs/TESTING.md](docs/TESTING.md) | what the harness asserts, what it deliberately does not, isolation, rules |
 
 ## Verify your work
 
@@ -151,8 +154,11 @@ script does this itself.
 
 | File | Job |
 |---|---|
-| `ApparelPainterStartup.cs` | class-keyed ITab injection onto every stand def |
-| `ITab_ApparelPainter.cs` | the Paint tab — rows, swatches, eyedropper mode, whole-stand actions |
+| `ApparelPainterStartup.cs` | class-keyed ITab injection onto all three adapter families, both def lists, Contents-before-Paint order |
+| `ITab_ApparelPainter.cs` | the Paint tab — rows, swatches, eyedropper mode, whole-building actions, the canonical display sort |
+| `ContainerAdapter.cs` | the DEC-037 seam — stand / Armor Racks / generic-storage adapters: listing, refresh, spawned-ness, the tab-visibility gate |
+| `AsfInterop.cs` | reflection poke of ASF's render cache (`SetAllPrintDatasDirty`) — the fourth bake site; present-only, degrades silently |
+| `Harness.cs` | the regression suite + its flag-gated boot (`-apparelpainter-harness`); body ships in every configuration |
 | `Dialog_StandColorPicker.cs` | picker subclass — drag strip, live preview on commit, direct input, snapshot revert |
 | `ColorForcer.cs` | comp-wart-safe colour writes, natural colour, wearer dirtying |
 | `StandGraphics.cs` | reflection bridge to the stand's private `RecacheGraphics` |
@@ -160,3 +166,4 @@ script does this itself.
 | `ApparelPainterMod.cs` | Mod entry + ModSettings (saved swatches; no settings window on purpose) |
 | `FloatMenu_Ordered.cs` | FloatMenu that keeps caller order — disabled header rows sink to the bottom in the stock one |
 | `DubsInterop.cs` | reflection read of Dubs Paint Shop's floor-paint map component (its paint is invisible to TerrainGrid.ColorAt) |
+| `DebugTools_*.cs` | SCENES-only film-set stages behind the media; destructive by design, never shipped |

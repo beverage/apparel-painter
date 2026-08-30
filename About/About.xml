@@ -3,6 +3,7 @@
   <name>Apparel Painter</name>
   <author>MrBeverage</author>
   <packageId>MrBeverage.ApparelPainter</packageId>
+  <url>https://github.com/beverage/apparel-painter</url>
   <supportedVersions>
     <li>1.6</li>
   </supportedVersions>
