@@ -448,6 +448,55 @@ same day (principal): media/gallery-wardrobe-before/after.png are the
 untitled crops of the NEW window, so every Workshop surface built on
 the pair scene shares one framing.
 
+### WIDENED TO SEVEN TILES, TYPE RAISED TO THE SIBLING'S BANNER SCALE (2026-08-30)
+
+Principal, looking at the live Workshop page: fill the width, seven tiles, and
+raise the title to Shift Change's banner size. Both came out of the SAME
+17:45 masters — no reshoot, because a 7-tile window still fits the 9-cell
+pair capture.
+
+```
+magick before-pair-1745__cell_rect.png -crop 1093x625+312+312 +repage pv-before.png
+magick after-pair-1745__cell_rect.png  -crop 1093x625+312+312 +repage pv-after.png
+magick -background none -fill "#f5f0e7" -font ~/Downloads/RimWordFont.ttf \
+       -pointsize 75 label:"APPAREL PAINTER" -trim +repage title.png    # 846x70
+magick -size 1093x625 xc:none \( -size 1093x156 gradient:black-none \) -composite \
+       title.png -gravity north -geometry +0+22 -composite overlay.png
+# frames, ffconcat durations, palettegen diff + bayer, gifsicle -O3 --lossy=60
+#   -> 1093x625, 19 frames, 410 KB (Steam's item-image cap is ~1 MB)
+```
+
+**The offsets did not move — only the width.** `+312+312` is unchanged, so the
+edge rule still holds: the window spans cells `first-1 .. first+5`, both
+vertical edges on GRID LINES, both horizontal edges the half-tile panel
+midlines of the 08-30 reframe.
+
+**A third stand is now in frame, and it is symmetric, not an accident.**
+Stands sit every 2 cells from `first`, so seven tiles cannot hold the pair
+centred without reaching `first+4`. At this offset the three land on tiles
+2, 4 and 6 of 7 — man, woman, man, with the centre stand dead centre and an
+empty tile at each edge. The old 5x4 rule ("no third stand") was a rule for a
+5-tile window; at 7 the same centring argument produces three.
+
+**Type: match pointsize-to-frame-WIDTH, never the ink box.** Shift Change's
+preview title measures 389x37 at +121+13 on 640x360 — pointsize 44, gradient
+90 (25% of height), y 13. Scaled to our 1093: pointsize `44/640*1093 = 75`,
+gradient `0.25*625 = 156`, y `13/640*1093 = 22`. The gradient and y offset
+ALREADY matched; only the type was short. Note the old 53 was also on the
+sibling's scale (`44/640*781 = 53.7`) — widening the frame without touching
+the type is what would have shrunk it, which is what the principal saw.
+
+Do NOT derive the pointsize from Shift Change's ink-box RATIO (389/640 = 61%
+of frame width). That number is a property of the STRING: "SHIFT CHANGE" is
+twelve characters, "APPAREL PAINTER" is fifteen, so ours lands at 846/1093 =
+77% at the same type size. Chasing 61% would have set pointsize ~59 and made
+the title SMALLER than the 5-tile version it was meant to grow past.
+
+The GALLERY PAIR followed, as the 08-30 entry above requires — every Workshop
+surface built on the pair scene shares one framing, so
+`gallery-wardrobe-before/after.png` are the untitled 1093x625 crops of this
+window off the same 17:45 masters. They had still been the old dark take.
+
 ### cards/card-faq.png (2026-08-29)
 
 Text card, no capture: the SIBLING's card-faq export page with our
@@ -615,6 +664,95 @@ edge-line columns. Cheaper than iterating cuts by eye. Un-annotated per
 the 08-27 shot plan; the bbcode TODO's "annotated" idea remains an
 option layered on this master. The bbcode slot now embeds the card
 (validator-clean, 0 problems).
+
+### RESHOT WARMER AND BRIGHTER (2026-08-30) — and the hour is a CURVE, not a setting
+
+Principal: the animated preview and the eight-stand row read dark next to
+every other gif on the page. Measured, they did: mean luminance 22% and 23%
+against 28-30% for core-loop, dropper, integrations and where-it-works. All
+four of those were shot at the noon pin; the two dark ones are the only
+assets re-aimed at dusk.
+
+**The real mechanism, and it retires "DUSK VARIES PER RELAUNCH" as a thing
+you just live with.** Sun glow is
+`GenCelestial.CelestialSunGlowPercent(latitude, dayOfYear, dayPercent)`, so a
+pinned hour lands somewhere different on every world roll. That framing led
+to judging the cast BETWEEN takes, which never converged, because each take
+was a different planet. Sweep hours WITHIN one roll instead and the whole
+curve is comparable. On the 08-30 roll:
+
+| hour | meanY | R,G,B | warmth R-B |
+|---|---|---|---|
+| 12-17 | 31.0% | 79,79,78 | +1 (pixel-identical across the band) |
+| 17:45 | 28.8% | 77,72,67 | +10 |
+| 18 | 27.0% | 75,67,58 | +17 |
+| 19 | 20.3% | 65,49,32 | +33 |
+| 20 | 18.3% | 40,48,52 | -12 (blue night) |
+
+The take that shipped measured R44 G45 B46, warmth -2, 17.9% — which on this
+curve sits between 19h and 20h. So `DuskHour 19.0` was pinned to the EDGE of
+a one-hour amber window: 08-28 take 1 landed inside it (warmth +11), the
+shipped take fell just past it into the blue. Nothing was random about it.
+
+**Warm is not free, and past 18h it costs the mod its subject.** At 18h and
+19h the amber wash drags the GARMENTS: the dress-white shirt goes cream, the
+pale-blue vests go olive-khaki. For a mod whose whole claim is "this is the
+colour you painted", a cast that lies about the after-colour works against
+the asset — which is what `PinLighting`'s own comment means by noon being
+"right for stills that must show true fabric colour". 17:45 is the corner of
+the curve: the warmth of the take everyone liked (+10 vs its +11) at the
+brightness of the noon-shot siblings (28.8% vs their 28-30%), with the
+garments still true. Shipped at 30% (flip) and 32% (row).
+
+**THE HOUR IS NOT PORTABLE.** 17:45 is not a setting to reuse — it is where
+this roll's curve turned. Re-sweep every shoot; the driver exists so that is
+cheap.
+
+Tooling added for it (all SCENES-only, none of it ships):
+
+- `Pin lighting: +1 hour` debug action — re-pins the clock an hour on and
+  re-clamps the weather, so a sweep stays comparable step to step.
+- `devtools/bridge/sweep-dusk.py` — builds the stage, walks noon to 21h,
+  captures pair + row at each hour.
+- `devtools/bridge/shoot-ab-hour.py` — shoot-ab.py at an ARBITRARY hour.
+  `--hour` walks with the debug action; `--minutes` finishes in raw ticks
+  (2500/hour), because a finer debug action would need a rebuild, a rebuild
+  needs a relaunch, and a relaunch re-rolls the world the hour was chosen on.
+
+The cut, on the 08-30 half-tile-up framing (`+312+312`) unchanged:
+
+```
+devtools/bridge/sweep-dusk.py 5175 apparelpainter-scene-bridge --from=12 --to=21
+devtools/bridge/shoot-ab-hour.py 5175 apparelpainter-scene-bridge --hour=17 --minutes=45
+devtools/make-ab.sh before-row-1745__cell_rect.png after-row-1745__cell_rect.png \
+                    wardrobe-row-dusk.gif                      # 446x118, 52 frames, 69 KB
+magick before-pair-1745__cell_rect.png -crop 781x625+312+312 +repage pv-before.png
+magick after-pair-1745__cell_rect.png  -crop 781x625+312+312 +repage pv-after.png
+# overlay exactly as 08-29: pointsize 53 title centred +0+22, 781x156 gradient
+# 19 frames: bt, morph(bt->at,8,-delete 0), morph(at->bt,8,-delete 0)
+# durations in an ffconcat (1.02 / 0.06 / 1.08 / 0.06), palettegen diff + bayer,
+# gifsicle -O3 --lossy=60                                       # 781x625, 284 KB
+```
+
+**Correction to the entries above: the shipped flip is NOT a 16+8+16+8 morph
+chain.** The artifact on disk is 19 frames with delays 102 / 6x8 / 108 / 6x9 —
+the holds are ONE long-delay frame each, not sixteen duplicates, which is the
+whole reason it fits in ~250 KB rather than ~390 KB. Whoever re-cut it that
+way did not record it, and the recipe here still described the 52-frame
+version. Dwell therefore belongs in ffconcat durations (the core-loop idiom),
+not in `-duplicate`; ffmpeg keeps the quantizing either way.
+
+Also: `gifsicle -b out.gif --delay N '#0'` does NOT edit one frame's delay in
+place. Frame selectors SUBSET — that call rewrites the file down to frame 0
+alone. There is no in-place per-frame delay edit here; set dwell at assembly.
+
+Masters: `~/Movies/apparel-painter-dusk-2026-08-30/` — the four
+`before|after-{pair,row}-1745` cell rects, with the hour curve's own frames
+under `sweep/`. NOT the scene folder: `run-scene.sh` opens with
+`rm -rf "$SCENEDATA"`, so anything left in `dist/scenedata/Screenshots` dies
+at the next scene launch. Scene-instance captures are ephemeral by
+construction — copy out whatever a shipped cut depends on, the same as every
+other entry above does.
 
 ### (recorded at cut time)
 
