@@ -193,16 +193,29 @@ uploader publishes the mod's folder verbatim: `Workshop.cs` hands
 is a symlink to this repository, uploading through it would ship `Source/`,
 `media/`, `dist/` and the entire `.git` directory to subscribers.
 
-Upload from a staged copy instead: the allowlist is
+`devtools/publish-workshop.sh` automates the whole swap:
+
+```bash
+devtools/publish-workshop.sh            # stage + install, the safe default
+devtools/publish-workshop.sh stage      # build Release + assemble dist/ApparelPainter
+devtools/publish-workshop.sh install    # swap it into Mods/, dev symlink aside
+devtools/publish-workshop.sh restore    # dev symlink back, item id recovered
+```
+
+`stage` assembles the allowlist —
 
 ```
 About Assemblies Languages Textures docs LICENSE README.md
 ```
 
-copied to a clean folder that replaces the symlink for the duration of the
-upload, then swapped back. (The sibling repo's `publish-workshop.sh`
-automates exactly this and is the port template once this mod is past its
-first release.)
+— sweeps `.DS_Store` and any `.dds` shadows out of the staged copy, and
+refuses stray dlls under `Assemblies/`. `install` replaces the dev symlink
+and prints the one confirmation Steam never gives: the item id (NONE is
+correct on the *first* publish and on no other), the staged size, the
+top-level listing, and the full browser checklist for the manual tail. That
+printed checklist is the authority; the engine facts below are why it
+exists. `restore` recovers `About/PublishedFileId.txt` into the repo for
+committing.
 
 Three engine facts shape the manual tail:
 
@@ -305,6 +318,7 @@ docs LICENSE README.md`.
 |---|---|
 | `run-harness.sh` | Runs the test suite headless in an isolated instance. `--full`, `--alongside`. |
 | `run-scene.sh` | Isolated interactive instance with the filming mod list. `--media`, `--bridge`, `--full`, `--alongside`. |
+| `publish-workshop.sh` | Stages a Workshop upload out of the working tree (allowlist, `.dds` sweep, stray-dll check) and swaps it into `Mods/`. `stage`, `install`, `restore`. |
 | `make-ab.sh` | Before/after crossfade gif from an aligned capture pair. |
 | `bbcode-preview.py` | Validates the store description and renders a local preview; reports the character count against Steam's limit. |
 | `bridge/` | Scripted-capture drivers for the driven shots; see `media/README.md`. |
