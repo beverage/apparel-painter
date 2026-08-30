@@ -497,6 +497,79 @@ surface built on the pair scene shares one framing, so
 `gallery-wardrobe-before/after.png` are the untitled 1093x625 crops of this
 window off the same 17:45 masters. They had still been the old dark take.
 
+### THE THIRD STAND TAKES A COMBAT KIT (2026-08-30, reshot at 17:00)
+
+Principal, on the widened frame: with room for a third stand, kit it out —
+flak armour and a devilstrand duster — and paint it as a coherent field rig.
+The row now reads formal / formal / FIELD instead of three variations on a
+suit, which is a better argument for a mod that paints anything worn.
+
+Five garments, five separate commits on one stand:
+
+| garment | def | colour | hex |
+|---|---|---|---|
+| button-down shirt | `Apparel_CollarShirt` | Tan 499 | `#C3B091` |
+| flak pants | `Apparel_FlakPants` | Ranger Green | `#6B705C` |
+| flak vest | `Apparel_FlakVest` | Coyote Brown | `#81613C` |
+| flak helmet | `Apparel_AdvancedHelmet` | Coyote Brown | `#81613C` |
+| duster | `Apparel_Duster` (Devilstrand) | Olive Drab | `#5A6237` |
+
+Green uniform, brown armour: coyote has been the plate-carrier and
+helmet-cover standard since roughly 2010, so cover and carrier match, and tan
+499 is the shirt worn under them. All clear the BlackTie luminance floor.
+
+**THE FLAK HELMET'S defName IS `Apparel_AdvancedHelmet`.** Label and defName
+disagree. A defName search for `Apparel_FlakHelmet` returns nothing and reads
+as "vanilla has no flak helmet", which is false. SEARCH APPAREL BY `<label>`,
+not by the name you expect: the same check finds `Apparel_CollarShirt` is the
+button-down, and that vanilla has no tunic at all.
+
+Two pieces genuinely take no stuff: flak vest and flak pants have no
+`stuffCategories`, their cloth being a fixed `costList` ingredient rather than
+a material choice. The stuff argument passed for them is inert — `Garment`
+skips the lookup when `MadeFromStuff` is false. The duster (Fabric) and shirt
+(Fabric) are real material choices; the helmet is Metallic-only, hence steel.
+
+**Layering, measured rather than predicted.** The duster is `Shell` over the
+vest's `Middle` and the pants' `OnSkin` and covers Torso/Neck/Shoulders/Arms/
+Legs, so the kit was expected to collapse into "a green coat". It does not —
+the duster's worn graphic has an OPEN FRONT, so the tan shirt reads clearly at
+the chest. The weak piece is the VEST: coyote brown multiplied over an already
+dark texture leaves it a shadow under the collar. If the armour ever needs to
+read, lighten the vest or drop the duster; do not darken anything.
+
+**THE CAPTURE SCALE CHANGED WITH THE DISPLAY.** This boot returned 1846x1640
+pair rects (205.1 px/cell) where the 08-30 morning take returned 1406x1250
+(156.25) — the instance follows whichever display it opens on, exactly as the
+core-loop entry warns. The window is still 7x4 tiles two cells in on both
+axes, so every number is re-derived, never reused:
+
+```
+devtools/bridge/sweep-dusk.py 5175 apparelpainter-scene-bridge --from=12 --to=21
+devtools/bridge/shoot-ab-hour.py 5175 apparelpainter-scene-bridge --hour=17
+devtools/make-ab.sh before-row-1700__cell_rect.png after-row-1700__cell_rect.png \
+                    wardrobe-row-dusk.gif                    # 586x154, 52 frames, 135 KB
+magick before-pair-1700__cell_rect.png -crop 1436x820+410+410 +repage pv-before.png
+magick after-pair-1700__cell_rect.png  -crop 1436x820+410+410 +repage pv-after.png
+magick -background none -fill "#f5f0e7" -font ~/Downloads/RimWordFont.ttf \
+       -pointsize 99 label:"APPAREL PAINTER" -trim +repage title.png   # 1114x91 = 77.6%
+magick -size 1436x820 xc:none \( -size 1436x205 gradient:black-none \) -composite \
+       title.png -gravity north -geometry +0+29 -composite overlay.png
+# 19 frames, ffconcat durations, palettegen diff + bayer, gifsicle -O3 --lossy=60
+#   -> 1436x820, 716 KB (Steam item-image cap ~1 MB)
+```
+
+Type is still Shift Change's banner scale — `44/640 * 1436 = 99`, gradient 25%
+of height, y `13/640 * 1436 = 29`. The ratios travel; the pixel numbers do not.
+
+**THE HOUR HAS NOW COST THREE DIFFERENT NUMBERS FOR ONE LOOK.** Same target
+(meanY ~28.8, warmth ~+10), three world rolls: 17:45, then 15:54, then 17:00
+flat. Never carry an hour between launches — sweep, match on the numbers,
+shoot. This roll happened to land on a whole hour and needed no fine pass.
+
+Masters: `~/Movies/apparel-painter-dusk-2026-08-30/` (see the note there; the
+scene folder is wiped by `run-scene.sh` at every launch).
+
 ### cards/card-faq.png (2026-08-29)
 
 Text card, no capture: the SIBLING's card-faq export page with our

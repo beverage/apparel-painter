@@ -96,6 +96,32 @@ namespace ApparelPainter
         };
 
         /// <summary>
+        /// The stand carrying a combat kit, in row order — index 2 puts it at
+        /// `first + 4`, the third and last stand inside the 7-tile preview
+        /// window, so the flip reads formal / formal / field rather than four
+        /// variations on a suit.
+        /// </summary>
+        internal const int SoldierIndex = 2;
+
+        // Real service colours, and the kit is coherent the way an issued one
+        // is: GREEN uniform, BROWN armour. Coyote brown has been the plate
+        // carrier and helmet cover standard since roughly 2010, which is why
+        // the vest and helmet share it — cover and carrier match in the field.
+        //
+        // All three clear the BlackTie luminance floor documented above (33-43%
+        // against its 22%), so the multiply keeps its tonal range. Do not
+        // darken them toward "tactical black": the texture detail goes with it.
+        internal static readonly Color CoyoteBrown = new Color(0.506f, 0.380f, 0.235f);
+        internal static readonly Color RangerGreen = new Color(0.420f, 0.439f, 0.361f);
+        internal static readonly Color OliveDrab = new Color(0.353f, 0.384f, 0.216f);
+
+        /// <summary>Tan 499 — the issued combat-shirt colour worn UNDER a
+        /// coyote carrier, which is why the soldier's button-down takes it
+        /// rather than another green. Bright enough (70% luminance) that the
+        /// multiply keeps the weave.</summary>
+        internal static readonly Color Tan499 = new Color(0.765f, 0.690f, 0.569f);
+
+        /// <summary>
         /// Row placement inside the pad, CENTRED. On a pad this size a row
         /// pinned near one corner leaves the stands against an edge, which is
         /// the thing a big pad exists to avoid: centred, every zoom level has
@@ -171,17 +197,46 @@ namespace ApparelPainter
                 Building_OutfitStand stand = (Building_OutfitStand)
                     DebugTools_GifStage.SpawnClean(map, standDef, null, cell, Rot4.South);
 
-                Dress(stand, "Apparel_ShirtRuffle", Inner);
-                if (i % 2 == 0)
+                if (i == SoldierIndex)
                 {
-                    Dress(stand, "Apparel_VestRoyal", Inner);
-                    Dress(stand, "Apparel_HatTop", Outer);
+                    // THE FLAK HELMET'S defName IS Apparel_AdvancedHelmet.
+                    // Label and defName disagree — "flak helmet" ships under
+                    // the advanced name — so a defName search for
+                    // Apparel_FlakHelmet finds nothing and reads as "vanilla
+                    // has no flak helmet", which is wrong. SEARCH HEADGEAR BY
+                    // <label>. It is Metallic-only, hence steel.
+                    //
+                    // The vest and pants take no stuff at all: no
+                    // stuffCategories, and their cloth is a fixed costList
+                    // ingredient (Cloth 30 + Steel 60) rather than a material
+                    // choice, so the name passed here is inert — Garment skips
+                    // the stuff lookup whenever MadeFromStuff is false. The
+                    // duster is the one genuinely stuffable piece, and
+                    // devilstrand is a Fabric, so that part is real.
+                    // Button-down under the armour: vanilla has no tunic, and
+                    // Apparel_CollarShirt IS the button-down shirt (Fabric,
+                    // OnSkin), so it sits under the vest the way a combat shirt
+                    // does. Checked by <label> after the helmet lesson.
+                    Dress(stand, "Apparel_CollarShirt", "Cloth");
+                    Dress(stand, "Apparel_FlakPants", "Cloth");
+                    Dress(stand, "Apparel_FlakVest", "Cloth");
+                    Dress(stand, "Apparel_AdvancedHelmet", "Steel");
+                    Dress(stand, "Apparel_Duster", "Devilstrand");
                 }
                 else
                 {
-                    Dress(stand, "Apparel_Corset", Inner);
-                    Dress(stand, "Apparel_RobeRoyal", Outer);
-                    Dress(stand, "Apparel_HatLadies", Outer);
+                    Dress(stand, "Apparel_ShirtRuffle", Inner);
+                    if (i % 2 == 0)
+                    {
+                        Dress(stand, "Apparel_VestRoyal", Inner);
+                        Dress(stand, "Apparel_HatTop", Outer);
+                    }
+                    else
+                    {
+                        Dress(stand, "Apparel_Corset", Inner);
+                        Dress(stand, "Apparel_RobeRoyal", Outer);
+                        Dress(stand, "Apparel_HatLadies", Outer);
+                    }
                 }
             }
 
@@ -250,6 +305,31 @@ namespace ApparelPainter
                 List<Thing> held = (stand as IThingHolder)?.GetDirectlyHeldThings()?.ToList();
                 if (held == null || held.Count == 0)
                 {
+                    continue;
+                }
+
+                // The soldier is painted PER ITEM rather than in two groups,
+                // which is the whole claim of the mod stated in one stand: four
+                // garments, four separate commits, one coherent kit out the far
+                // side. Note the duster is Shell over the vest's Middle and the
+                // pants' OnSkin, and it covers Torso/Neck/Shoulders/Arms/Legs —
+                // so on the rendered stand the visible read is duster plus
+                // helmet. The vest and pants are still individually painted and
+                // still listed in the Paint tab; they are simply worn under a
+                // coat, exactly as they would be in play.
+                if (i == SoldierIndex)
+                {
+                    Commit(stand, held.Where(t => IsDef(t, "Apparel_CollarShirt")).ToList(),
+                        Tan499);
+                    Commit(stand, held.Where(t => IsDef(t, "Apparel_FlakPants")).ToList(),
+                        RangerGreen);
+                    Commit(stand, held.Where(t => IsDef(t, "Apparel_FlakVest")).ToList(),
+                        CoyoteBrown);
+                    Commit(stand, held.Where(t => IsDef(t, "Apparel_AdvancedHelmet")).ToList(),
+                        CoyoteBrown);
+                    Commit(stand, held.Where(t => IsDef(t, "Apparel_Duster")).ToList(),
+                        OliveDrab);
+                    painted++;
                     continue;
                 }
 
@@ -379,6 +459,11 @@ namespace ApparelPainter
         internal static bool IsShirt(Thing t)
         {
             return t?.def?.defName == "Apparel_ShirtRuffle";
+        }
+
+        internal static bool IsDef(Thing t, string defName)
+        {
+            return t?.def?.defName == defName;
         }
 
         internal static bool IsVest(Thing t)
