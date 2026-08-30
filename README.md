@@ -1,6 +1,6 @@
 # Apparel Painter
 
-> **No DLC and no dependencies required** — not even Harmony. It needs
+> **No DLC and no dependencies required**, not even Harmony. It needs
 > RimWorld 1.6 and something that can hold apparel: an Odyssey outfit stand,
 > an Armor Rack, or any storage shelf. Any one is enough, and there is
 > nothing to configure.
@@ -17,12 +17,12 @@ stands, same garments, new palette, all done from the stands' own tabs.*
 
 ## How to use it
 
-1. **Select anything that holds apparel** — an outfit stand, an armor rack,
-   a shelf — and open its **Paint** tab. Every item gets a row: an info
+1. **Select anything that holds apparel** (an outfit stand, an armor rack,
+   a shelf) and open its **Paint** tab. Every item gets a row: an info
    card, the item, a swatch showing its current color, and **Reset**, which
    returns a painted garment to its natural material color.
 2. **Click a swatch** to open the color picker for that item, or **Paint
-   all…** for everything on the building at once. Your choice previews on
+   all...** for everything on the building at once. Your choice previews on
    the actual map as you pick. **Accept** keeps it; **Cancel** or Esc puts
    everything back exactly as it was.
 3. That is the whole loop. Painting is instant and free.
@@ -30,7 +30,7 @@ stands, same garments, new palette, all done from the stands' own tabs.*
 ![Two stands painted per-item and with Paint all](media/core-loop.gif)
 
 *Two stands: one painted a garment at a time from the saved swatches, the
-other flooded with Paint all — which takes the shirt along with everything
+other flooded with Paint all, which takes the shirt along with everything
 else, so the per-item brush takes it back.*
 
 ## The picker
@@ -43,7 +43,7 @@ the surface it lacks:
 - **RGB fields and a hex field.** The hex field doubles as a readout: when
   you are not typing in it, it shows the current color, ready to copy and
   carry to another stand. It also takes decimal triplets, bytes or floats.
-- **The vanilla paint palette** — the same chart wall paint uses, so mods
+- **The vanilla paint palette**: the same chart wall paint uses, so mods
   that add paint colors appear here automatically.
 - **Your own saved swatches.** The `+` cell saves the current color;
   right-click removes one. They persist across saves and across games, and
@@ -58,14 +58,14 @@ it remembers where you put it. Nothing closes it except Accept and Cancel.
 Three ways to pick a color up instead of mixing it. Sampling only reads, so
 a source does not need to be paintable itself:
 
-- **Every swatch becomes an eyedropper** while a picker is open — including
+- **Every swatch becomes an eyedropper** while a picker is open, including
   another building's. Select the next stand over and sip colors straight
   from its rows.
 - **The Old color box has a dropper**: one click returns to the color the
   picker opened with.
 - **The map dropper samples anything you can see**: pawns and corpses (a
   menu of what they are wearing), stands and racks (what they hold),
-  furniture, items, walls — and floors, painted floors included. A cell
+  furniture, items, walls, and floors (painted floors included). A cell
   with several sources opens a menu of the whole stack; bare floor samples
   in one click. It keeps sampling until you right-click or press Esc.
 
@@ -77,9 +77,8 @@ carpet she is standing on. Each sip lands in the open picker.*
 ## Where it works
 
 - **Odyssey outfit stands**, including the Biotech kid stand and any modded
-  stand built on the vanilla stand class —
-  [Outfit Stands Plus](https://steamcommunity.com/workshop/filedetails/?id=3545172389),
-  for instance.
+  stand built on the vanilla stand class, such as
+  [Outfit Stands Plus](https://steamcommunity.com/workshop/filedetails/?id=3545172389).
 - **[Armor Racks](https://steamcommunity.com/sharedfiles/filedetails/?id=1875828205)**,
   through an adapter built against its published source.
 - **Any vanilla-style storage**: the base game's shelves,
@@ -91,14 +90,19 @@ carpet she is standing on. Each sip lands in the open picker.*
 
 *Stands and shelves in one room, everything recolored where it sits.*
 
+![sbz Neat Storage, LWM Deep Storage and Armor Racks holding painted apparel](media/integrations.gif)
+
+*The modded neighbours: rainbow dusters on an [sbz] Neat Storage hanger, an
+LWM Deep Storage clothing rack, and a stocked Armor Rack.*
+
 Worth knowing, in the fine print:
 
 - Rows are anything paintable, which is mostly apparel but also includes
-  textile stacks. Painting a stack of cloth is cosmetic only — items crafted
+  textile stacks. Painting a stack of cloth is cosmetic only: items crafted
   from it take the material's own color, as always.
 - A weapon parked on a stand is listed but has no swatch; weapons generally
   take no dye, and hiding the row would misreport what the stand holds.
-- Rows sort by name, then quality, then condition — the same order in the
+- Rows sort by name, then quality, then condition, the same order in the
   tab and in the dropper's menus. A shelf draws its stock in arrival order,
   so the list will not always match the shelf left to right.
 
@@ -112,7 +116,7 @@ Worth knowing, in the fine print:
 
 ## Mod compatibility
 
-There are no Harmony patches, no XML patches and no def edits — the mod
+There are no Harmony patches, no XML patches and no def edits: the mod
 injects its tab at startup and touches nothing else. Load order does not
 matter, and there is no patch for another mod to collide with.
 
@@ -132,14 +136,14 @@ matter, and there is no patch for another mod to collide with.
   LWM's Inventory tab.
 
 If a storage or display mod you use does not show the tab, or shows stale
-colors after painting, that is a bug worth reporting — name the mod.
+colors after painting, that is a bug worth reporting; name the mod.
 
 ## Save safety
 
 Every color this mod applies is ordinary base-game apparel color state,
 saved by the base game. Add the mod to an existing save freely. Remove it
 and every painted item keeps its color; you only lose the tools. Nothing of
-the mod's is written into save files at all — the saved swatches live in
+the mod's is written into save files at all. The saved swatches live in
 RimWorld's config folder, beside your keybindings.
 
 ## Status
@@ -177,7 +181,7 @@ real engine rather than mocks, in about twenty seconds on the minimal mod
 list (game launch, mod load and quit included). It asserts the surfaces this
 mod depends on: the stand's private render cache, the color comp's quirks,
 the picker's preview/cancel/accept state machine, floor paint resolution,
-and the reflected internals of every supported mod — so when the game or a
+and the reflected internals of every supported mod, so when the game or a
 neighbour updates, the specific ways this mod could break fail loudly in
 testing rather than quietly on your shelf. What it covers and what it
 deliberately does not is in [docs/TESTING.md](docs/TESTING.md).
@@ -207,8 +211,8 @@ shipping or committing, which also sweeps the dev artifacts.
 ## Credit
 
 [Dubs Paint Shop](https://steamcommunity.com/sharedfiles/filedetails/?id=1579516669)
-by Dubwise owns the other half of this problem — repainting the world in
-bulk — and is the reason this mod could stay narrow. khamenman's
+by Dubwise owns the other half of this problem (repainting the world in
+bulk) and is the reason this mod could stay narrow. khamenman's
 [Armor Racks](https://steamcommunity.com/sharedfiles/filedetails/?id=1875828205)
 ships its source code, which is what let its adapter be built on fact rather
 than guesswork.

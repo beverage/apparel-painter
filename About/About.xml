@@ -14,9 +14,9 @@
     <li>khamenman.armorracks</li>
     <li>sbz.NeatStorage</li>
   </loadAfter>
-  <description>Paint apparel exactly where it sits — on outfit stands, armor racks, and storage shelves.
+  <description>Paint apparel exactly where it sits: on outfit stands, armor racks, and storage shelves.
 
-Designator painters recolour en masse; this is the per-item brush. Select the building, open its Paint tab, and recolour any single item — or everything on it at once — with live preview on the map, the full colour picker (HSV wheel, brightness slider, RGB and hex entry, the vanilla paint palette), saveable swatches that persist across games, and eyedroppers that sample a colour from anything you can see, painted floors included.
+Designator painters recolour en masse; this is the per-item brush. Select the building, open its Paint tab, and recolour any single item (or everything on it at once) with live preview on the map, the full colour picker (HSV wheel, brightness slider, RGB and hex entry, the vanilla paint palette), saveable swatches that persist across games, and eyedroppers that sample a colour from anything you can see, painted floors included.
 
 Every colour is an ordinary base-game apparel colour: safe to add or remove mid-save, and painted apparel keeps its colour even if the mod is gone. Per-item Reset returns any garment to its natural material colour.
 
