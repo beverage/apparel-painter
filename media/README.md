@@ -122,7 +122,8 @@ card recipe: Chrome headless at 2× on a transparent 640×4000 window,
 -strip` → `cards/card-pairs-with.png` (1280×454). The banner is the
 standard title swap ("Pairs with") through the banner recipe → 1280×98.
 The card regenerates whenever the sibling's Card_PairsWith copy changes;
-re-run the driver, not a hand edit.
+re-run `devtools/render-pairs-with.py` (the driver, kept in this repo)
+plus the Chrome + magick lines above, never a hand edit.
 
 ### wardrobe-row-dusk.gif and wardrobe-pair-dusk.gif (2026-08-28)
 
