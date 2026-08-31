@@ -4,7 +4,7 @@
 # with the sibling's headless-Chrome + trim recipe.
 set -eu
 
-TEMPLATE="/Users/alexbeverage/Code/Apps/rimworld/shift-change/media/cards/_export/Banner_WhatItDoes.html"
+TEMPLATE="/Users/alexbeverage/Code/Apps/rimworld/shift-change/media/cards/_export/banner-what-it-does.html"
 EXPORT="/Users/alexbeverage/Code/Apps/rimworld/apparel-painter/media/cards/_export"
 OUT="/Users/alexbeverage/Code/Apps/rimworld/apparel-painter/media/cards"
 CHROME="/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
@@ -23,6 +23,7 @@ banners = {
     "banner-compatibility": "Compatibility",
     "banner-faq": "FAQ",
     "banner-source": "Source",
+    "banner-pairs-with": "Pairs with",
 }
 needle = '<span class="t">What it does</span>'
 assert needle in src, "template body changed"

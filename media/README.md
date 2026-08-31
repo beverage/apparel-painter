@@ -100,10 +100,29 @@ this file, and is the reason this file exists.
 ### cards/ — the section banners
 
 Minted by `banner-export.sh`: shift-change's banner template
-(`shift-change/media/cards/_export/Banner_WhatItDoes.html` — a live
-dependency on the sibling's tooling), retitled per section, rendered by
+(`shift-change/media/cards/_export/banner-what-it-does.html` — a live
+dependency on the sibling's tooling; the sibling's export pages went
+kebab-case at some point and the old `Banner_WhatItDoes.html` path in this
+script was dead until 2026-08-31), retitled per section, rendered by
 headless Chrome at 2×, trimmed and flattened onto `#1f242a`.
 `cards/_export/` holds the regenerated HTML and is gitignored.
+
+### cards/card-pairs-with.png + banner-pairs-with.png (2026-08-31)
+
+The Shift Change cross-promotion pair. The card's copy lives as
+`Card_PairsWith` in the SIBLING's generator
+(`shift-change/media/card-mockup.py`, committed there as `0e14b04`),
+DRAFT-parked so it can never land in shift-change's own cards/. Because
+`--export` walks ORDER only, the render is a small driver that imports
+the generator as a module and reproduces the export branch for the one
+card (SHOW_LABELS off, EXPORT_CSS, parts-path rewrite; text-only card,
+so no parts needed) into this repo's `cards/_export/`, then the sibling
+card recipe: Chrome headless at 2× on a transparent 640×4000 window,
+`magick -trim +repage -background "#1f242a" -alpha remove -alpha off
+-strip` → `cards/card-pairs-with.png` (1280×454). The banner is the
+standard title swap ("Pairs with") through the banner recipe → 1280×98.
+The card regenerates whenever the sibling's Card_PairsWith copy changes;
+re-run the driver, not a hand edit.
 
 ### wardrobe-row-dusk.gif and wardrobe-pair-dusk.gif (2026-08-28)
 
