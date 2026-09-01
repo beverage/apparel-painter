@@ -107,7 +107,15 @@ script was dead until 2026-08-31), retitled per section, rendered by
 headless Chrome at 2×, trimmed and flattened onto `#1f242a`.
 `cards/_export/` holds the regenerated HTML and is gitignored.
 
-### cards/card-pairs-with.png + banner-pairs-with.png (2026-08-31)
+### banner-pairs-with.png (+ the retired card render) (2026-08-31, revised 2026-09-01)
+
+STATUS: the page ships the BANNER plus the card's first paragraph as
+plain bbcode text (Americanized, Shift Change linked inline). The
+rendered card is OFF the page and deleted from cards/ — its big
+"UNIFORM WALLS" title read as a mod name under a "Pairs with" banner
+(principal, 2026-09-01). The copy's source of truth stays in the
+sibling's generator; the driver below still renders the card on demand
+if it is ever wanted elsewhere.
 
 The Shift Change cross-promotion pair. The card's copy lives as
 `Card_PairsWith` in the SIBLING's generator
