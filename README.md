@@ -83,6 +83,7 @@ carpet she is standing on. Each sip lands in the open picker.*
   through an adapter built against its published source.
 - **Any vanilla-style storage**: the base game's shelves,
   [[sbz] Neat Storage](https://steamcommunity.com/sharedfiles/filedetails/?id=3416243474),
+  [Reel's Expanded Storage](https://steamcommunity.com/sharedfiles/filedetails/?id=3237638097),
   and most storage mods. The tab appears only when the building actually
   holds something paintable, so food crates and fridges stay clean.
 

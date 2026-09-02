@@ -47,6 +47,16 @@ assertions only under `--full`. The first `--full` run also caught the game
 having quietly moved to a new revision, and certified every reflection
 surface against it the same day; that is the suite doing precisely its job.
 
+**ASF is asserted at the framework, never per skin.** The tripwire pins
+`StorageRenderer`'s public members, which every Adaptive Storage skin
+inherits, so one assertion stands behind [sbz] Neat Storage, Reel's Expanded
+Storage and the rest. Individual skins are confirmed by hand on the scene
+list, which carries both at once: they do not collide at the def level
+(checked 2026-09-02 — Neat Storage patches none of the five VE defs Reel's
+rewrites), so the whole cost of loading them together is a Furniture
+category crowded with near-identical buildings. Reel's confirmed 2026-09-02:
+tab on the apparel locker, paint landing on the shelf without a reload.
+
 ## Isolation
 
 `-savedatafolder` gives the test instance its own `ModsConfig.xml`, saves
