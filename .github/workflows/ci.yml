@@ -1,0 +1,178 @@
+# Build, validate, and the invariants this codebase actually broke once each.
+# Zero secrets. Tag a commit v* to additionally get a packaged mod zip on a
+# GitHub Release. Workshop publishing is deliberately not automated: the game's
+# own uploader is the only route, and it ships the mod folder verbatim.
+#
+# Ported from shift-change's workflow. Every check here also runs locally from
+# devtools/, so a green run here is reproducible by hand before pushing.
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install xmllint
+        run: sudo apt-get update && sudo apt-get install -y libxml2-utils
+
+      # This mod ships no Defs/ and no Patches/ — the tab is injected at
+      # runtime precisely to stay off the shared-def commons. shift-change's
+      # version names all four directories unconditionally, which under
+      # errexit fails the job on a directory that was never meant to exist.
+      # So: walk the ones that are present, and pick up Defs/Patches for free
+      # if this mod ever grows them. `xargs -r` keeps an empty match from
+      # invoking xmllint with no arguments.
+      - name: XML well-formedness
+        shell: bash
+        run: |
+          set -o pipefail
+          dirs=""
+          for d in About Defs Patches Languages; do
+            [ -d "$d" ] && dirs="$dirs $d"
+          done
+          echo "walking:$dirs"
+          find $dirs -name '*.xml' -print0 | xargs -0 -r xmllint --noout
+
+      # Hot-reload invariants, translation keys in both directions, XML-to-C#
+      # type bindings, the <Patch> root walk, the Workshop preview size, and
+      # the no-private-tracking-IDs rule. See the script's docstring for why
+      # each exists.
+      - name: Static invariants
+        run: python3 devtools/check-invariants.py
+
+      # An unclosed tag makes Steam render the remainder of the store page as
+      # literal text, publicly, until someone notices. Changelogs go through
+      # the same validator: they are pasted into the same editor and fail the
+      # same way.
+      - name: Steam BBCode
+        shell: bash
+        run: |
+          python3 devtools/bbcode-preview.py media/steam-description.bbcode
+          for f in media/changelog-*.bbcode; do
+            [ -e "$f" ] || continue
+            python3 devtools/bbcode-preview.py "$f"
+          done
+
+      # About/Preview.png is the Workshop previewfile AND, for this mod, the
+      # ANIMATED flip: it holds media/preview-animated.gif's bytes under a
+      # .png name (nothing validates bytes against extension, and clients
+      # content-sniff). Reshooting the preview without copying it across
+      # leaves the Workshop showing the previous release's image — which
+      # happened at v1.1.0 and was caught by eye, not by a check. The
+      # invariants script tests the file's SIZE; only this compares content.
+      - name: Preview.png is the current animated preview
+        shell: bash
+        run: |
+          if ! cmp -s About/Preview.png media/preview-animated.gif; then
+            echo "::error::About/Preview.png does not match media/preview-animated.gif — copy the gif over it (the previewfile is the gif's bytes under a .png name)"
+            exit 1
+          fi
+
+      # A Debug build is instrumented and references EditCompileReload by
+      # name; Release references nothing of it. The committed dll must be the
+      # Release one — this catches "forgot to rebuild before staging"
+      # mechanically. run-scene.sh writes the same path, so a filming session
+      # leaves a SCENES build sitting exactly where the release reads from.
+      - name: Committed dll is a clean Release build
+        shell: bash
+        run: |
+          # Numeric comparison, not string: BSD wc pads its count with
+          # leading spaces where GNU wc does not, so `[ "$count" != "1" ]`
+          # passes on the runner and fails on the macOS box these checks are
+          # also meant to be runnable from.
+          count=$(ls Assemblies/*.dll | wc -l)
+          if [ "$count" -ne 1 ]; then
+            echo "::error::Assemblies/ must hold exactly ApparelPainter.dll (found $count dlls)"
+            exit 1
+          fi
+          if ls Assemblies/*.dll_orig 2>/dev/null; then
+            echo "::error::a .dll_orig is committed — Debug artifact, sweep with a Release build"
+            exit 1
+          fi
+          if grep -q EditCompileReload Assemblies/ApparelPainter.dll; then
+            echo "::error::committed ApparelPainter.dll references EditCompileReload — an instrumented Debug build was committed; rebuild with -c Release"
+            exit 1
+          fi
+
+      # The other half of the same question, and deliberately NOT a grep: the
+      # debug stages must be ABSENT and the harness PRESENT. .NET keeps type
+      # names in #Strings (UTF-8) but string literals in #US (UTF-16), so a
+      # grep for "apparelpainter-harness" finds nothing whether or not it
+      # shipped. The script explains the trap and searches both encodings.
+      - name: Committed dll ships no debug scenes
+        run: python3 devtools/check-shipped-dll.py
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      # No RimWorld on a runner, so the csproj falls back to
+      # Krafs.Rimworld.Ref. Verified locally through the same path with
+      # -p:DisableLocalGameRefs=true before this workflow was written; both
+      # configurations build clean that way.
+      #
+      # Media carries the SCENES fixtures with Release codegen and is only
+      # built on filming days, so without this it rots silently and the
+      # breakage surfaces when someone is trying to capture footage.
+      - name: Build (Media)
+        run: dotnet build Source/ApparelPainter/ApparelPainter.csproj -c Media
+
+      # MUST follow Media: both configurations write the same
+      # Assemblies/ApparelPainter.dll, so whichever runs last is what the
+      # next step inspects.
+      - name: Build (Release)
+        run: dotnet build Source/ApparelPainter/ApparelPainter.csproj -c Release
+
+      # Re-run against the FRESHLY BUILT dll, not just the committed one.
+      # The committed check catches a mis-staged config; this catches a new
+      # debug action nobody wrapped in #if SCENES, which is the failure that
+      # would otherwise ship silently. Confirmed non-vacuous: the Media build
+      # above fails this check, so a passing Release run means something.
+      - name: Release build ships no debug scenes
+        run: python3 devtools/check-shipped-dll.py
+
+      - name: Assemblies swept after Release build
+        shell: bash
+        run: |
+          ls -la Assemblies/
+          test "$(ls Assemblies/ | wc -l)" -eq 1
+
+  release:
+    needs: checks
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Build (Release)
+        run: dotnet build Source/ApparelPainter/ApparelPainter.csproj -c Release
+
+      # The zip is the mod folder a player drops into Mods/: game-loaded
+      # content plus the human documents. No Source/, no devtools/, no media/,
+      # no CI. This list is the same allowlist publish-workshop.sh stages, and
+      # the two must not drift — Textures/ is here and Defs//Patches/ are not,
+      # which is what makes it this mod's list rather than the sibling's.
+      - name: Assemble mod folder
+        run: |
+          mkdir -p dist/ApparelPainter
+          cp -R About Assemblies Languages Textures docs LICENSE README.md dist/ApparelPainter/
+          cd dist && zip -r "ApparelPainter-${GITHUB_REF_NAME}.zip" ApparelPainter
+
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$GITHUB_REF_NAME" dist/ApparelPainter-*.zip --title "$GITHUB_REF_NAME" --generate-notes
