@@ -103,6 +103,23 @@ namespace ApparelPainter
         /// </summary>
         internal const int SoldierIndex = 2;
 
+        /// <summary>
+        /// The prestige marine stand, at index 4 — inside the
+        /// eight-stand ROW gif but OUTSIDE the preview, whose crop only ever
+        /// holds stands 0, 1 and 2.
+        ///
+        /// Positions settled 2026-09-03 after trying it the other way round.
+        /// The preview keeps the FIELD RIG because the samurai beat is
+        /// Royalty-only, and the field kit is the one thing in that frame a
+        /// player without DLC could actually own — the page's opening claim
+        /// is "no DLC required". The samurai still ships, one stand further
+        /// along, where the row gif reaches it.
+        ///
+        /// Row reads tux / woman / FIELD KIT / woman / MARINE / woman / tux
+        /// / woman.
+        /// </summary>
+        internal const int MarineIndex = 4;
+
         // Real service colours, and the kit is coherent the way an issued one
         // is: GREEN uniform, BROWN armour. Coyote brown has been the plate
         // carrier and helmet cover standard since roughly 2010, which is why
@@ -139,6 +156,44 @@ namespace ApparelPainter
         /// the before and after shots.
         /// </summary>
         internal const int RefZ = RowZ - 3;
+
+        /// <summary>
+        /// The armour pair sits four cells NORTH of the row, opposite the
+        /// reference pair, for the same reason that one sits south: every
+        /// existing capture crops by cell rect around the row, so a stand
+        /// outside that rect cannot photobomb a blessed frame. Nothing about
+        /// the eight-stand row moves to make room for this — the row's
+        /// framing is committed art (About/Preview.png, wardrobe-row-dusk),
+        /// and repurposing one of its indices would have reshot both.
+        ///
+        /// PaintWardrobeStage walks the row only, so these two keep their
+        /// issued colours through the paint action as well.
+        /// </summary>
+        internal const int ArmourZ = RowZ + 4;
+
+        /// <summary>
+        /// The style subject. Power armour SUITS carry no styles at
+        /// all — verified across vanilla and every subscribed mod — so the
+        /// suit here is silhouette and the HELMET is the subject:
+        ///
+        /// - marine helmet (`Apparel_PowerArmorHelmet`) holds three vanilla
+        ///   styles, Animalist / Morbid / Totemic, and they are silhouette
+        ///   changes rather than recolours, so they read at gallery size.
+        /// - prestige marine helmet (`Apparel_ArmorMarineHelmetPrestige`)
+        ///   holds the game's ONLY `overrideLabel` style, so clicking it
+        ///   re-labels the tab row "prestige marine helmet" → "samurai
+        ///   helmet". That is the beat that shows a style is not a repaint.
+        ///
+        /// Both need Ideology for the category styles; the scene list carries
+        /// it. Neither is stuffable, so the stuff name passed to Dress is
+        /// inert (Garment skips the lookup when MadeFromStuff is false) — it
+        /// is written out anyway to match the soldier stand's idiom.
+        ///
+        /// defNames resolved BY LABEL, per the flak-helmet lesson recorded on
+        /// the soldier stand below: "marine armor" is `Apparel_PowerArmor`,
+        /// not `Apparel_MarineArmor`, and the prestige pair lives in Royalty.
+        /// </summary>
+        internal const int ArmourX = RowX + 2;
 
         [DebugAction("Apparel Painter", "Build wardrobe stage", false, false,
             actionType = DebugActionType.ToolMap,
@@ -223,6 +278,20 @@ namespace ApparelPainter
                     Dress(stand, "Apparel_AdvancedHelmet", "Steel");
                     Dress(stand, "Apparel_Duster", "Devilstrand");
                 }
+                else if (i == MarineIndex)
+                {
+                    // PRESTIGE marine, not plain marine, and that is forced
+                    // rather than chosen: PrestigeMarineHelmet_Samurai is
+                    // the only style either piece has, and it exists only
+                    // on the prestige helmet. The suit carries no style at
+                    // all — power armour suits never do — so the helmet is
+                    // the whole style beat.
+                    //
+                    // Neither piece is stuffable, so the stuff names are
+                    // inert; written out to match the flak rig's idiom.
+                    Dress(stand, "Apparel_ArmorMarinePrestige", "Steel");
+                    Dress(stand, "Apparel_ArmorMarineHelmetPrestige", "Steel");
+                }
                 else
                 {
                     Dress(stand, "Apparel_ShirtRuffle", Inner);
@@ -256,9 +325,20 @@ namespace ApparelPainter
             Reference(map, origin + new IntVec3(RowX + 2, 0, RefZ),
                 "Apparel_VestRoyal", Inner, BlackTie);
 
+            // -- the armour pair: the style subject ------------------------
+            //
+            // Left stand cycles (three styles), right stand re-labels (one).
+            // Undyed on purpose: a style beat must not be readable as a
+            // paint beat, so nothing here is tinted.
+            Armour(map, origin + new IntVec3(ArmourX, 0, ArmourZ), standDef,
+                "Apparel_PowerArmor", "Apparel_PowerArmorHelmet");
+            Armour(map, origin + new IntVec3(ArmourX + 2, 0, ArmourZ), standDef,
+                "Apparel_ArmorMarinePrestige", "Apparel_ArmorMarineHelmetPrestige");
+
             Messages.Message(
                 $"Wardrobe stage built: {StandCount} undyed stands, {Inner} and {Outer}, "
-                + "plus a dyed reference pair to dropper from.",
+                + "a dyed reference pair to dropper from, and the armour pair "
+                + "(marine, prestige marine) for the style beat.",
                 MessageTypeDefOf.TaskCompletion, historical: false);
         }
 
@@ -329,6 +409,24 @@ namespace ApparelPainter
                         CoyoteBrown);
                     Commit(stand, held.Where(t => IsDef(t, "Apparel_Duster")).ToList(),
                         OliveDrab);
+                    StyleSoldierRig(stand, held);
+                    painted++;
+                    continue;
+                }
+
+                if (i == MarineIndex)
+                {
+                    // ONE colour across both pieces (principal, 2026-09-02).
+                    // An earlier take made the helmet a contrasting brown so
+                    // its outline would separate from the suit; the call is
+                    // to keep the rig a single ranger green, and the samurai
+                    // kabuto's crest carries the silhouette on its own
+                    // without needing a colour break to do it.
+                    Commit(stand, held.Where(t => IsDef(t, "Apparel_ArmorMarinePrestige")).ToList(),
+                        RangerGreen);
+                    Commit(stand, held.Where(t => IsDef(t, "Apparel_ArmorMarineHelmetPrestige")).ToList(),
+                        RangerGreen);
+                    StyleMarineHelmet(stand, held);
                     painted++;
                     continue;
                 }
@@ -495,6 +593,111 @@ namespace ApparelPainter
             }
             ColorForcer.ForceSetColor(garment, tint);
             GenSpawn.Spawn(garment, cell, map);
+        }
+
+        /// <summary>One armour stand: suit for the silhouette, helmet for the
+        /// subject. Silent when the def is missing so a Royalty-less list
+        /// still builds the rest of the stage.</summary>
+        internal static void Armour(Map map, IntVec3 cell, ThingDef standDef, string suit, string helmet)
+        {
+            if (!cell.InBounds(map)
+                || DefDatabase<ThingDef>.GetNamedSilentFail(suit) == null
+                || DefDatabase<ThingDef>.GetNamedSilentFail(helmet) == null)
+            {
+                return;
+            }
+            Building_OutfitStand stand = (Building_OutfitStand)
+                DebugTools_GifStage.SpawnClean(map, standDef, null, cell, Rot4.South);
+            Dress(stand, suit, "Steel");
+            Dress(stand, helmet, "Steel");
+        }
+
+        /// <summary>
+        /// The style half of the PREVIEW's flip: the field rig goes
+        /// Spikecore on BOTH its styled garments at once — helmet and
+        /// duster. Two pieces rather than one on purpose: the rig's whole
+        /// argument is that it is a coherent kit, so a style change that
+        /// takes only the helmet reads as one odd hat, while helmet plus
+        /// coat reads as the kit itself changing.
+        ///
+        /// Ideology, not Royalty. Both styles are Ludeon's own
+        /// (Ideology/Defs/ThingStyleDefs), and the rig's other three
+        /// garments — shirt, pants, vest — carry no styles at all.
+        ///
+        /// Neither piece renames itself; Spikecore sets no overrideLabel.
+        /// The rename beat belongs to the samurai stand further along the
+        /// row.
+        /// </summary>
+        internal static void StyleSoldierRig(Building_OutfitStand stand, List<Thing> held)
+        {
+            bool wrote = false;
+            foreach (var pair in new[]
+            {
+                new[] { "Apparel_AdvancedHelmet", "Spikecore_AdvancedHelmet" },
+                new[] { "Apparel_Duster", "Spikecore_Duster" },
+            })
+            {
+                ThingStyleDef style = DefDatabase<ThingStyleDef>.GetNamedSilentFail(pair[1]);
+                if (style == null)
+                {
+                    continue;
+                }
+                foreach (Thing thing in held)
+                {
+                    if (IsDef(thing, pair[0]))
+                    {
+                        wrote |= StyleForcer.SetStyle(thing, style);
+                    }
+                }
+            }
+            if (wrote)
+            {
+                // Same reason as StyleMarineHelmet: Commit() refreshes
+                // through the picker's accept path, this write lands after
+                // the last Commit and needs its own recache.
+                ContainerAdapter.For(stand)?.Refresh(stand);
+            }
+        }
+
+        /// <summary>
+        /// The row gif's rename beat: the prestige marine helmet takes
+        /// SAMURAI. It is the only style the piece has, and the only
+        /// style in vanilla that sets `overrideLabel` — so the same flip
+        /// that repaints the rig also renames the garment.
+        ///
+        /// Needs ROYALTY, not Ideology: the style is a `randomStyle` variant
+        /// on the prestige helmet rather than an ideoligion category entry.
+        ///
+        /// Through StyleForcer, not SetStyleDef, for the same reason
+        /// Commit() goes through the picker's own accept path: what the
+        /// stage skips is the mouse, not the mod. Silent when the def is
+        /// absent — the colour half of the flip still works.
+        /// </summary>
+        internal static void StyleMarineHelmet(Building_OutfitStand stand, List<Thing> held)
+        {
+            ThingStyleDef style = DefDatabase<ThingStyleDef>.GetNamedSilentFail("PrestigeMarineHelmet_Samurai");
+            if (style == null)
+            {
+                return;
+            }
+            bool wrote = false;
+            foreach (Thing thing in held)
+            {
+                if (IsDef(thing, "Apparel_ArmorMarineHelmetPrestige"))
+                {
+                    wrote |= StyleForcer.SetStyle(thing, style);
+                }
+            }
+            if (wrote)
+            {
+                // THE REFRESH IS NOT OPTIONAL, and this is where that was
+                // learned the second time. Commit() reaches the adapter
+                // refresh through the picker's accept path, so the colour
+                // showed; this write runs AFTER the last Commit, so without
+                // its own recache the stand kept drawing the unstyled
+                // helmet and the first take came back colour-only.
+                ContainerAdapter.For(stand)?.Refresh(stand);
+            }
         }
 
         internal static void Dress(Building_OutfitStand stand, string defName, string stuffName)

@@ -10,7 +10,7 @@ one garment at a time or a whole stand at once, with the choice previewed
 live on the map while you make it. Designator painters recolor in bulk; this
 is the per-item brush.
 
-![A wardrobe wall before and after a painting pass](media/wardrobe-row-dusk.gif)
+![A wardrobe wall before and after a painting pass](media/wardrobe-row.gif)
 
 *The same wardrobe wall twice: as stocked, and after a painting pass. Same
 stands, same garments, new palette, all done from the stands' own tabs.*
