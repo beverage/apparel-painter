@@ -7,7 +7,7 @@ using Verse;
 namespace ApparelPainter
 {
     /// <summary>
-    /// The seam that makes the mod "wherever apparel sits" (DEC-037): one
+    /// The seam that makes the mod "wherever apparel sits": one
     /// adapter per family of apparel-holding building. First match wins;
     /// stands and racks are container models (unspawned items, baked
     /// graphics needing a refresh), generic storage is the spawned model
@@ -55,7 +55,7 @@ namespace ApparelPainter
 
         /// <summary>Stands and racks are apparel furniture and always show
         /// the tab; generic storage only when it actually holds apparel, so
-        /// food crates and fridges stay clean (DEC-037).</summary>
+        /// food crates and fridges stay clean.</summary>
         internal virtual bool TabVisible(Thing building)
         {
             return true;

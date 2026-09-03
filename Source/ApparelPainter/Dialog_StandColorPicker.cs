@@ -20,7 +20,7 @@ namespace ApparelPainter
     /// the Old colour box for one-click revert, a saved-swatch band (the
     /// user's own palette, persisted in ModSettings across games), and a
     /// map-wide dropper that sips a colour off anything through the native
-    /// Targeter — the whole cell stack, floors included (BL-080).
+    /// Targeter — the whole cell stack, floors included.
     ///
     /// The R/G/B textfields are OURS, not the base's: the base is
     /// constructed with ColorComponents.None (its ColorTextfields
@@ -540,7 +540,7 @@ namespace ApparelPainter
         /// Targeting rules for the map dropper. The dropper READS — sources
         /// need no CompColorable — so anything spawned and unfogged is fair
         /// game, and bare cells are targetable too: terrain is a colour
-        /// source (BL-080) and clicking empty floor is the natural
+        /// source, and clicking empty floor is the natural
         /// sample-the-carpet gesture. mapObjectTargetsMustBeAutoAttackable
         /// defaults TRUE and must be forced off or most items and buildings
         /// refuse targeting.
@@ -592,7 +592,7 @@ namespace ApparelPainter
         }
 
         /// <summary>
-        /// Every colour source at the clicked cell, categorised (BL-080).
+        /// Every colour source at the clicked cell, categorised.
         /// The targeter's own per-click pick follows draw altitude — a
         /// wall-mounted heater outranks the stand sharing its cell, an
         /// overlay building outranks the carpet, and terrain is not a thing

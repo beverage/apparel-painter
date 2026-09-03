@@ -2,8 +2,11 @@
 
 A RimWorld 1.6 mod: one C# assembly that adds a Paint tab wherever apparel
 sits — outfit stands, Armor Racks, and vanilla-style storage, through the
-`ContainerAdapter` seam (DEC-037; storage shows the tab only when it holds
+`ContainerAdapter` seam (storage shows the tab only when it holds
 apparel). Designator painters recolour en masse; this is the per-item layer.
+Rows also carry a **style control** where the item has styles: the
+ideoligion and `randomStyle` looks the game otherwise assigns at craft time and
+never lets a player change.
 No Harmony patches, no defs of its own
 beyond keyed strings; art is a single UI icon texture
 (`Textures/ApparelPainter/UI/`). **No save-file state** — item colours are
@@ -67,6 +70,35 @@ and Dubs' floor grids on the read side. Miss one and painting "doesn't
 work" on exactly that family until a reload. When a new storage
 integration misrenders after paint, look for its bake first.
 
+**`SetStyleDef` shows nothing on its own.** It writes the comp field, clears
+`cachedStyleCategoryDef`, and stops — it does NOT clear `Thing.styleGraphicInt`
+or dirty the map mesh, so a restyled item keeps drawing its old art until
+something unrelated invalidates it. Nothing in vanilla ever restyles an
+existing thing, so the engine never needed that path. Route every style write
+through `StyleForcer`, which borrows `Notify_ColorChanged` (it does both) and
+then leans on the same adapter Refresh the colour path uses. Never call
+`SetStyleDef` or assign `Thing.StyleDef` directly.
+
+**`ThingMaker.MakeThing` arrives PRE-STYLED for `randomStyle` defs.**
+`PostMake` rolls the def's own `randomStyle` list (`Verse/Thing.cs:790`), so
+a freshly made prestige marine helmet is samurai half the time and a
+cultist mask always wears one of four faces. Any fixture or stage that
+means "undyed and unstyled" must say so — `DebugTools_GifStage.Garment`
+already clears it, and two harness cases had to learn the same lesson (one
+failed, one was silently flaky).
+
+**Never offer a style control on a thing with a `StyleSourcePrecept`.** That
+style is owned by a precept, and `CompStyleable.SourcePrecept` re-derives
+styleDef from it — write underneath and the pair silently disagree. No vanilla
+apparel is a relic, but a stand's parked weapon can be. `StyleForcer.CanRestyle`
+is the single gate; do not bypass it.
+
+**Style defs ship no `label` — not one, across vanilla and every mod
+surveyed.** Menu names are derived (`StyleIndex.NameOptions`): category label,
+else `overrideLabel`, else the defName tail split from camel case. The failure
+this prevents is the character editor's, which shows players raw defNames like
+`Spikecore_Duster`. The harness asserts no label contains an underscore.
+
 **`CompColorable.SetColor` no-ops on exact white for undyed items.** The
 comp's private colour field defaults to white while inactive, and `SetColor`
 early-outs on equality without activating. Route every colour write through
@@ -117,7 +149,7 @@ before trusting the rest of the layout.
 `StaticConstructorOnStartup` runs after def resolution, so appending to
 `inspectorTabs` alone does nothing — `inspectorTabsResolved` is the live
 list. Never move the tab into an XML patch: list nodes on a shared vanilla
-def are a commons (two mods' Adds clobber each other; root DEC-032).
+def are a commons (two mods' Adds clobber each other).
 
 **Do not mint graphics per drag frame.** Every unique colour creates a
 permanent `GraphicDatabase` entry plus materials, never evicted. The picker
@@ -135,6 +167,18 @@ turns out to be worn — keep it that way.
 auto-property.** Hot-swapped method bodies execute in a separate assembly and
 Unity's Mono honours only `InternalsVisibleTo`; a `private` member or a
 backing field throws at runtime mid-iteration.
+
+**`Widgets.ButtonInvisible` swallows right-clicks, and answers for them.**
+`GUI.DoControl` (verified against UnityEngine.IMGUIModule, 2022.3.35f1) takes
+`EventType.MouseDown` with **no button check**, calls `Event.Use()`, and
+returns true on the following MouseUp. So a right-click test placed *after* a
+`ButtonInvisible` on the same rect never fires — the event is already `Used` —
+and the click falls through to the left-click branch instead. For a
+two-button control, branch on `Event.current.button` INSIDE the
+`ButtonInvisible` result (vanilla's `Message.cs:171`). Testing MouseDown
+*before* the call also works (`Letter.cs:136`) but do not do both. This
+shipped: the style control's right-click menu never opened and right-click
+silently cycled instead (found in play 2026-09-02).
 
 **Do not bind hotkeys on gizmos or rows.** On storage-carrying buildings N, J
 and F are taken (settings copy, settings paste, forbid) and O is reserved.
@@ -156,11 +200,13 @@ script does this itself.
 |---|---|
 | `ApparelPainterStartup.cs` | class-keyed ITab injection onto all three adapter families, both def lists, Contents-before-Paint order |
 | `ITab_ApparelPainter.cs` | the Paint tab — rows, swatches, eyedropper mode, whole-building actions, the canonical display sort |
-| `ContainerAdapter.cs` | the DEC-037 seam — stand / Armor Racks / generic-storage adapters: listing, refresh, spawned-ness, the tab-visibility gate |
+| `ContainerAdapter.cs` | the adapter seam — stand / Armor Racks / generic-storage adapters: listing, refresh, spawned-ness, the tab-visibility gate |
 | `AsfInterop.cs` | reflection poke of ASF's render cache (`SetAllPrintDatasDirty`) — the fourth bake site; present-only, degrades silently |
 | `Harness.cs` | the regression suite + its flag-gated boot (`-apparelpainter-harness`); body ships in every configuration |
 | `Dialog_StandColorPicker.cs` | picker subclass — drag strip, live preview on commit, direct input, snapshot revert |
 | `ColorForcer.cs` | comp-wart-safe colour writes, natural colour, wearer dirtying |
+| `StyleIndex.cs` | ThingDef → its styles, from every StyleCategoryDef plus each def's own `randomStyle`; the cycle order and the menu names |
+| `StyleForcer.cs` | style writes with the same discipline as colour: the precept guard, the invalidation borrow, the cycle |
 | `StandGraphics.cs` | reflection bridge to the stand's private `RecacheGraphics` |
 | `ApparelPainterTex.cs` | startup-loaded texture handles (dropper icon) |
 | `ApparelPainterMod.cs` | Mod entry + ModSettings (saved swatches; no settings window on purpose) |

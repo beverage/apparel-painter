@@ -9,7 +9,7 @@ namespace ApparelPainter
 {
     /// <summary>
     /// The Paint tab on any apparel-holding building the adapter seam
-    /// recognises (stands, Armor Racks, vanilla-style storage — DEC-037):
+    /// recognises (stands, Armor Racks, vanilla-style storage):
     /// one row per listed item — info card, icon, label, a colour swatch
     /// that opens the picker, and a reset back to natural — plus
     /// whole-building paint/reset above the list. Items without
@@ -30,6 +30,8 @@ namespace ApparelPainter
         internal const float SwatchWidth = 44f;
         internal const float SwatchHeight = 22f;
         internal const float ResetWidth = 58f;
+        internal const float StyleWidth = 24f;
+        internal const float StyleGap = 6f;
 
         internal Vector2 scrollPosition;
 
@@ -175,7 +177,11 @@ namespace ApparelPainter
 
             CompColorable comp = item.TryGetComp<CompColorable>();
             float labelLeft = 28f + IconSize + 6f;
-            float labelRight = width - SwatchWidth - ResetWidth - 16f;
+            // The style slot is RESERVED on every row, not just the ~12%
+            // that can use it: the columns then line up whatever a stand
+            // happens to hold, and 24px off a 245px label zone truncates
+            // nothing that was not already truncating.
+            float labelRight = width - StyleWidth - StyleGap - SwatchWidth - ResetWidth - 16f;
             Text.Anchor = TextAnchor.MiddleLeft;
             Rect labelRect = new Rect(labelLeft, y, labelRight - labelLeft, RowHeight);
             string label = item.LabelCap;
@@ -193,6 +199,8 @@ namespace ApparelPainter
                 TooltipHandler.TipRegion(tipZone,
                     new TipSignal(label + "\n" + item.DescriptionDetailed, item.thingIDNumber ^ 0x2E5C1));
             }
+
+            DoStyleButton(owner, adapter, item, width, y);
 
             if (comp == null)
             {
@@ -238,6 +246,108 @@ namespace ApparelPainter
                 }
             }
             y += RowHeight;
+        }
+
+        /// <summary>
+        /// The style control: a thumbnail of the item's current
+        /// look. LEFT-CLICK CYCLES, RIGHT-CLICK OPENS THE LIST — the
+        /// character editor's gesture pair, without its carousel, because
+        /// 30 of the 45 styled defs on a heavily modded list have exactly
+        /// one style and cycling them is a single-click toggle. Drawn only
+        /// when the def actually has styles, which on a real wardrobe is
+        /// about one row in eight; its presence is also the only signal
+        /// anywhere in the game that an item CAN be styled, since style
+        /// defs ship no label and the item's name never changes.
+        ///
+        /// Unlike the swatch, this does NOT become an eyedropper while a
+        /// picker is open, and its writes are not part of the picker's
+        /// snapshot: a restyle is immediate and permanent, exactly like the
+        /// Reset button beside it. Preview-and-revert for style is the
+        /// picker-band step, deliberately deferred.
+        /// </summary>
+        internal void DoStyleButton(Thing owner, ContainerAdapter adapter, Thing item, float width, float y)
+        {
+            if (!StyleForcer.CanRestyle(item))
+            {
+                return;
+            }
+            Rect styleRect = new Rect(
+                width - StyleWidth - StyleGap - SwatchWidth - ResetWidth - 8f,
+                y + (RowHeight - SwatchHeight) / 2f,
+                StyleWidth,
+                SwatchHeight);
+            Widgets.DrawBox(styleRect);
+            if (Mouse.IsOver(styleRect))
+            {
+                Widgets.DrawHighlight(styleRect);
+            }
+            // The engine's own icon resolution, handed the CURRENT style —
+            // null draws the plain def icon, so the button is a live
+            // thumbnail of the choice with no fallback chain of ours.
+            Widgets.DefIcon(styleRect.ContractedBy(2f), item.def, item.Stuff, 1f, item.StyleDef);
+
+            string current = StyleForcer.CurrentLabel(item) ?? "ApparelPainter_NoStyle".Translate().ToString();
+            TooltipHandler.TipRegion(styleRect,
+                new TipSignal("ApparelPainter_StyleTip".Translate(current), item.thingIDNumber ^ 0x51E1E));
+
+            // BOTH buttons come back through ButtonInvisible — branch on
+            // which, vanilla's own two-button idiom (Message.cs:171).
+            // Do NOT test for MouseDown alongside this: GUI.DoControl
+            // consumes MouseDown for ANY button and returns true on the
+            // following MouseUp, so a right-click test placed after this
+            // call sees a Used event and never fires, while the click falls
+            // through to the left-click branch. That shipped once.
+            if (Widgets.ButtonInvisible(styleRect))
+            {
+                if (Event.current.button == 1)
+                {
+                    OpenStyleMenu(owner, adapter, item);
+                }
+                else
+                {
+                    ApplyStyle(owner, adapter, item, StyleForcer.NextInCycle(item, 1));
+                }
+            }
+        }
+
+        /// <summary>
+        /// The style menu's contents, built separately from showing it so
+        /// the harness can assert the authored order without a WindowStack.
+        /// "No style" leads; the rest follow the index's cycle order, so the
+        /// menu and the click-cycle agree on what comes next.
+        /// </summary>
+        internal static List<FloatMenuOption> StyleMenuOptions(Thing owner, ContainerAdapter adapter, Thing item)
+        {
+            List<FloatMenuOption> menu = new List<FloatMenuOption>
+            {
+                new FloatMenuOption("ApparelPainter_NoStyle".Translate(),
+                    () => ApplyStyle(owner, adapter, item, null)),
+            };
+            foreach (StyleOption option in StyleIndex.For(item.def))
+            {
+                StyleOption captured = option;
+                menu.Add(new FloatMenuOption(captured.Label,
+                    () => ApplyStyle(owner, adapter, item, captured.Style),
+                    captured.Icon, Color.white));
+            }
+            return menu;
+        }
+
+        internal static void OpenStyleMenu(Thing owner, ContainerAdapter adapter, Thing item)
+        {
+            // Ordered, not the stock menu: this list is authored, and the
+            // base re-sorts by priority.
+            Find.WindowStack.Add(new FloatMenu_Ordered(StyleMenuOptions(owner, adapter, item)));
+        }
+
+        internal static void ApplyStyle(Thing owner, ContainerAdapter adapter, Thing item, ThingStyleDef style)
+        {
+            if (!StyleForcer.SetStyle(item, style))
+            {
+                return; // no change: do not rebuild a graphic cache for nothing
+            }
+            adapter.Refresh(owner);
+            SoundDefOf.Click.PlayOneShotOnCamera();
         }
 
         internal static void OpenPicker(Thing owner, List<Thing> targets)

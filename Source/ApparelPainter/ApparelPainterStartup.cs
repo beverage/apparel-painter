@@ -9,7 +9,7 @@ namespace ApparelPainter
     /// Injects the Paint tab onto every outfit-stand def at startup.
     ///
     /// Runtime injection, not an XML patch, on purpose: list nodes on a
-    /// shared vanilla def are a commons (root DEC-032 — two mods' Adds
+    /// shared vanilla def are a commons (two mods' Adds
     /// clobber each other), while appending from C# is load-order-independent
     /// and collides with nobody.
     ///
@@ -24,7 +24,7 @@ namespace ApparelPainter
         static ApparelPainterStartup()
         {
             Type tabType = typeof(ITab_ApparelPainter);
-            // The three adapter families (DEC-037). The rack type resolves
+            // The three adapter families. The rack type resolves
             // only when Armor Racks is loaded; storage covers every
             // Building_Storage subclass — the tab's apparel-present
             // visibility gate keeps it off crates and fridges.

@@ -86,9 +86,10 @@ and `--alongside` is the deliberate opt-in.
 
 ## What the cases assert
 
-Seventeen cases, six kinds. A case can carry several assertions; the
-minimal list reports around 21 passing with 3 skips, and `--full` converts
-the skips.
+Twenty-two cases, seven kinds. A case can carry several assertions;
+`--full` reports **35 passing, none skipped**, and the minimal list turns
+three of those into SKIPs — the Dubs, Armor Racks and ASF tripwires — each
+naming the command that would run it.
 
 **Engine-member tripwires.** The private engine surface this mod leans on,
 pinned by name: the stand's `RecacheGraphics` and its private graphic-cache
@@ -138,6 +139,30 @@ pinned forever.
 members, present and reachable. On the minimal list these SKIP, with the
 reason and the command that would run them (`--full`) in the report.
 
+**Styles.** The reverse index the style control reads is checked for the
+two ways it can rot silently: a raw defName reaching a menu label, and two
+options on one def sharing a label. Neither is hypothetical — the second
+failed on first run, because vanilla's `Ideogram` carries an A and a B
+variant in *every* category and the first disambiguation replaced the
+colliding labels with the derived defName tail, which fixed the clash
+inside one category and created a worse one across all of them. Beyond the
+index: the write repeats the bake invariant for worn art (a style write
+alone must not move the stand's cache; the adapter's refresh must), a full
+cycle must return to no-style so the control can never strand an item, the
+menu must lead with "no style" and then follow the index's cycle order so
+the menu and the click never disagree, and a style that sets
+`overrideLabel` must actually rename its item — the claim the gif's closing
+beat and the store copy both make.
+
+Two guards are asserted rather than assumed, because both are invisible
+when they fail open: a thing with no `CompStyleable` is never offered the
+control, and neither is one whose style comes from a **precept**. That
+second fixture has to be a def with `randomStyleChance > 0`, and not by
+preference — for every other def `CompStyleable`'s setter dereferences
+`sourcePrecept.ideo`, which a bare precept has not got. Vanilla's
+randomStyle apparel short-circuits that branch, which is the only reason
+the guard can be tested without standing up an ideoligion.
+
 ## What is not covered
 
 - **Everything visual.** No case draws a row, lands an overlay on the
@@ -153,7 +178,17 @@ reason and the command that would run them (`--full`) in the report.
   The floor resolver and the menu-ordering primitive under them are
   pinned; the targeter flow itself is not.
 - **The wearer path.** No case stages a picker target that walks away
-  mid-dialog; the wearer-dirtying write is exercised in play only.
+  mid-dialog; the wearer-dirtying write is exercised in play only. The
+  style write shares that path and is equally unasserted there.
+- **The style control's two-button click.** `Widgets.ButtonInvisible`
+  answers for BOTH mouse buttons, so left-cycles-right-menus is a branch on
+  `Event.current.button` inside one result. The suite proves state, not
+  IMGUI events, so nothing asserts that branch — and it shipped wrong once,
+  right-click cycling instead of opening the menu, found in play. The menu
+  it *builds* is asserted; the click that opens it is not.
+- **Style writes through storage and racks.** Only the stand adapter is
+  exercised for styles. The other two families are covered for colour, and
+  the refresh path is shared, but no case restyles an item on a shelf.
 - **LWM Deep Storage.** No case; its storage conversion and the tab's
   placement beside its Inventory tab were verified in play (2026-08-29).
 - **Save round trips.** Nothing of this mod's is in the save file, and

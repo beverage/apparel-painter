@@ -6,6 +6,8 @@
   <ApparelPainter_ResetAll>Reset all</ApparelPainter_ResetAll>
   <ApparelPainter_Reset>Reset</ApparelPainter_Reset>
   <ApparelPainter_SwatchTip>Change color. The stand previews your choice as you pick; Cancel restores what was there.</ApparelPainter_SwatchTip>
+  <ApparelPainter_NoStyle>No style</ApparelPainter_NoStyle>
+  <ApparelPainter_StyleTip>Style: {0}.\n\nClick to try the next one, right-click for the list. Applies straight away.</ApparelPainter_StyleTip>
   <ApparelPainter_DirectInputLabel>Hex / RGB</ApparelPainter_DirectInputLabel>
   <ApparelPainter_ApplyColor>Set</ApparelPainter_ApplyColor>
   <ApparelPainter_DirectInputTip>Type a color and press Enter: hex (EFD8AE or #EFD8AE) or a decimal triplet (237,216,174 as bytes, or 0-1 floats). No alpha. When not editing, this shows the current color's hex, ready to copy to another stand.</ApparelPainter_DirectInputTip>
