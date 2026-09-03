@@ -195,6 +195,89 @@ Every write goes through `ColorForcer`, because `SetColor` has two warts:
   Harmless while this mod is instant-only; recorded here because a future
   dye-paying mode must never stage-then-instant-paint the same garment.
 
+## Styles: the variant no player can choose
+
+A garment can carry a `ThingStyleDef` — the Spikecore duster, the Totemic
+marine helmet, one of Anomaly's four ritual-mask faces. It is not paint, but
+it is the same question the mod exists to answer, one comp along.
+
+**The hole is total.** `CompProperties_Styleable` sits on `ApparelBase`
+(`Core/Defs/ThingDefs_Misc/Apparel_Various.xml:38`), one level under the
+`CompColorable` this mod already drives, so every quality garment in the game
+already carries a vanilla-scribed `styleDef`. But tracing every engine caller
+of `SetStyleDef`, a style only ever arrives three ways: at craft time from the
+crafter's ideoligion (`GenRecipe.cs:106`), from a `randomStyle` roll
+(`GenRecipe.cs:118`, `PawnApparelGenerator.cs:857`), or baked in at world
+generation. `Designator_Build` covers buildings; the styling station covers
+hair, beards, tattoos and apparel *colour*. Nothing anywhere lets a player
+change an existing garment's style. Anomaly's ritual mask is the sharpest
+case: `randomStyleChance 1` over four faces, so every mask ever crafted rolls
+a face that can never be chosen.
+
+**The index.** The engine has no ThingDef → styles lookup —
+`StyleCategoryDef.GetStyleForThingDef` walks one category, `Ideo.style` is
+scoped to one ideoligion, `ThingStyleDef.Category` scans every category to
+answer for one style. `StyleIndex` builds the missing direction lazily on
+first use, from two sources whose order *is* the cycle order: every
+`StyleCategoryDef.thingDefStyles` entry in DefDatabase order, then every def's
+own `randomStyle` list. The second source matters more than its size suggests:
+the Anomaly masks and Royalty's samurai helmet belong to no category at all
+and are invisible to every category-based lookup, including the game's own.
+DefDatabase order is stable for a given modlist, so "click twice for Totemic"
+survives a restart.
+
+Without Ideology the category loop is simply empty and the `randomStyle` pass
+still finds the Anomaly and Royalty variants, which is why the feature adds no
+DLC requirement.
+
+**Naming, and what it is avoiding.** Style defs ship no `label` — not one
+across vanilla and every mod surveyed — so a name has to be derived. Character
+editors show the raw defName (`Spikecore_Duster`, `Dresses_Duster`). Ours
+prefers the **category label**, because that is the word players already know
+from ideoligion creation; then `overrideLabel`, which is the item's real name
+when set (vanilla sets it exactly once, `PrestigeMarineHelmet_Samurai` →
+"samurai helmet"); then the defName tail split from camel case, which is what
+the category-less Anomaly masks fall back to and reads fine
+(`CultistMask_TwistedMask` → "Twisted mask"). Two options that would collide
+both fall back to the derived form, so the menu never shows one name twice.
+
+**The write borrows the colour path's invalidation.** `SetStyleDef` writes the
+comp field, clears `cachedStyleCategoryDef`, and stops — it leaves
+`styleGraphicInt` cached and the map mesh clean, because nothing in vanilla
+ever restyles a thing that already exists. `Notify_ColorChanged` does both
+(`Verse/Thing.cs:1666`), so `StyleForcer` calls it, then the owner's adapter
+`Refresh` handles the bake sites exactly as for colour. The stand needs no new
+hook at all: `RecacheGraphics` resolves art through
+`ApparelGraphicRecordGetter.TryGetGraphicApparel` → `apparel.WornGraphicPath`,
+which is style-first (`RimWorld/Apparel.cs:41`).
+
+**The control, and why it is not a carousel.** Measured across vanilla plus
+the full subscribed set, 45 of 383 concrete apparel defs carry a style — about
+one row in eight — and 30 of those 45 have exactly *one*. The common case is a
+toggle, not a browse. So the control is a 24px thumbnail in the right cluster
+that **cycles on left-click and opens the list on right-click**: the character
+editor's gesture pair without its per-row carousel, which would have cost ~100px
+of every row's label zone and rendered greyed on the seven rows in eight that
+have nothing to show. The slot is reserved on every row so the columns line up;
+only the button is conditional. Its icon is `Widgets.DefIcon` handed the current
+style, so it is a live thumbnail with no fallback chain of ours, and its mere
+presence is the only signal anywhere in the game that an item *can* be styled —
+style defs carry no label, so a Totemic recon helmet reads as "recon helmet"
+everywhere else.
+
+Two deliberate limits. A restyle is **immediate and not part of the picker's
+snapshot**, matching the Reset button beside it; preview-and-revert for style
+belongs to a future style band inside the picker, which can only work when
+every picker target shares a def. And there is **no whole-building restyle**:
+styles are per-def, and with a median of one style per def there is nothing to
+batch.
+
+`StyleForcer.CanRestyle` is the single gate, and its load-bearing clause is
+`StyleSourcePrecept != null`. An item whose style comes from a precept has a
+two-way relationship with it — `CompStyleable.SourcePrecept` re-derives
+styleDef — so writing underneath leaves the pair disagreeing. No vanilla
+apparel is a relic, but a stand's parked weapon can be.
+
 ## The picker
 
 `Dialog_ColorPickerBase` is Core and abstract: HSV wheel, palette row,

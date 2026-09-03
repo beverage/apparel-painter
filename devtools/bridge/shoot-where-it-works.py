@@ -47,8 +47,11 @@ def main():
     b, _ = connect(sys.argv[1:])
     s = Shoot(b)
 
-    b.tool("rimworld/start_debug_game_ready",
-           {"readiness": "visual", "pauseIfNeeded": True, "timeoutMs": 300000})
+    # wait_for_game_loaded, NOT start_debug_game_ready: run-scene.sh boots
+    # with -quicktest, so the game is already up, and asking an already-booted
+    # instance to generate one stalls indefinitely whenever its window is not
+    # frontmost (gamedata/rimbridgeserver.md, operational traps).
+    b.tool("rimbridge/wait_for_game_loaded", {"timeoutMs": 300000})
 
     for _ in range(6):
         b.tool("rimworld/press_cancel", ok=False)

@@ -623,7 +623,7 @@ quality" hypothesis did NOT verify — ASF's only quality logic is the
 BUILDING's CompQuality scaling capacity (maxItemsPerCellByQuality in
 ThingClass.cs); nothing sorts displayed items by quality. What
 players actually see is OUR tab's canonical sort (name → quality →
-condition, BL-079) against the container's own draw order (arrival,
+condition) against the container's own draw order (arrival,
 for vanilla and ASF alike). The card says exactly that and tells
 them to match garments by swatch, not position.
 
@@ -859,3 +859,163 @@ other entry above does.
 
 One subsection per shot-list asset — the exact `footage.sh` and `magick`
 invocations, masters, crops and ramps — added as each is produced.
+
+### styles.gif, and the style pass reshoots everything (2026-09-02)
+
+The style control landed on every Paint tab row, so every gif whose scene
+holds a **styled** garment shows a new button and had to be reshot. Which
+ones is a data question, not a judgement call: the control draws only for
+defs the style index knows, which on the scene mod list is vanilla styles
+only (`VanillaExpanded.VMemesE` and `Anthitei.ATHsStyleFemaleDresses.Style`
+are both absent from `run-scene.sh`'s list).
+
+| gif | scene | styled garments present | reshot |
+|---|---|---|---|
+| `where-it-works.gif` | StorageScene | Duster ×3 → Spikecore | yes |
+| `integrations.gif` | IntegrationsScene | Duster, FlakJacket, AdvancedHelmet | yes |
+| `dropper.gif` | DropperScene | Duster ×2 → Spikecore | yes |
+| `core-loop.gif` | CoreLoopScene | **none** — the formal-wear set is entirely styleless | **no** |
+
+The three reshoots use their existing recipes VERBATIM — same crops, same
+durations, same encoder flags — because they sit in a gallery beside stills
+that were not reshot. `devtools/make-reshoot-gifs.sh` runs all three plus
+the two cards (which are crops of single beats, so they go stale with the
+gifs). Pass the shoot driver's stdout as its second argument to get the
+dropper's cursor composited in.
+
+CORRECTION while re-cutting: this file has recorded `dropper.gif` as
+**10 frames** since the v2 entry. It has always been **9** — the shipped
+artifact at HEAD is 9 frames, and the driver emits nine beats. The count
+was wrong, not the gif.
+
+#### The new gif
+
+`devtools/bridge/shoot-style.py` → `devtools/make-style-gif.sh` →
+`media/styles.gif` (7 beats, 1170x514, 191 KB).
+
+Subject is the **armour pair**, new to the wardrobe stage for this shot and
+placed four cells NORTH of the formal row so no blessed frame moves.
+Power-armour SUITS carry no styles at all, in vanilla or any surveyed mod —
+the suit is silhouette, the HELMET is the subject:
+
+- marine helmet: Animalist / Morbid / Totemic, three silhouette changes that
+  read at gallery size rather than recolours
+- prestige marine helmet: the game's ONLY `overrideLabel` style, so applying
+  it RENAMES the tab row to "Samurai helmet" — the tail beat, and the one
+  that shows a style is not a repaint
+
+Beats: idle → painted (teal `217878`, the set's recurring accent, committed
+through the picker's own Set + Accept path) → morbid → totemic → animalist →
+prestige-before → samurai. Painting FIRST is the point of the order: the
+three style beats land on a painted helmet and keep the paint, because no
+vanilla style sets `StyleDef.color` and `Apparel.DrawColor` therefore falls
+through to `CompColorable`.
+
+Two beats are SHOT and deliberately NOT CUT (`01-picker-open`,
+`02-preview`): parked anywhere this crop can hold, the picker window covers
+the stands, and a live-preview beat whose subject is hidden proves nothing.
+Holding tab + subject + a ~570px picker side by side needs a ~3:1 letterbox
+that would not sit beside the other gifs. The colour story is carried by the
+tab instead — swatches turn teal and Reset buttons appear between idle and
+painted. `core-loop.gif` is where the picker gets its showcase.
+
+CAMERA WARNING, paid for twice: the camera does NOT land on the requested
+cell and does not respond linearly to it (Camera+ is in the scene list and
+the jump animates). Requesting the stand's own z put the stands at screen
+y≈697; z+4 put them at y≈1283 — a 146px-per-cell response where the
+geometry predicts 60, and the second take was unusable. So the driver holds
+the one offset with MEASURED positions and all framing happens in the crop,
+where an iteration costs an ffmpeg run instead of a shoot. Layout at that
+offset, in original 2560x1440 coordinates:
+
+```
+stands      y≈697        tab        y 755..1240
+formal row  y≈1257       gizmo bar  y≈1320
+```
+
+`make-style-gif.sh` crops `1560:685:0:560` — top at 560 for the prestige
+plume, bottom at 1245 to keep the Contents|Paint|Storage strip while
+excluding both intruders.
+
+### wardrobe-row.gif (RENAMED) and the preview go DAYLIGHT (2026-09-03)
+
+Two changes ship together: the row's third stand is reworked, and the whole
+pair moves off dusk. Entries above keep the old `wardrobe-row-dusk.gif`
+filename because they describe takes that were dusk; the asset itself is now
+`media/wardrobe-row.gif`, and README.md, the bbcode and shoot-ab-hour.py's
+printed cut command were updated with it.
+
+#### The row
+
+Stand indices settled after trying it both ways (principal, 2026-09-03):
+
+| index | stand | flip |
+|---|---|---|
+| 0 | tux | BlackTie |
+| 1 | woman | scarlet frock |
+| 2 | **field rig** | five colours **+ Spikecore on helmet AND duster** |
+| 3 | woman | frock |
+| 4 | **prestige marine** | all ranger green **+ Samurai** |
+| 5–7 | woman / tux / woman | frocks, BlackTie |
+
+The field rig stays at index 2 — the PREVIEW crop only ever holds stands 0,
+1 and 2, and the rig is the one thing in that frame a player without DLC
+could plausibly own, which matters under a page whose first line is "no DLC
+required". (It does not make the frame DLC-free: the two formal stands are
+Royalty, and the stage refuses to build without it.) The samurai still
+ships, one stand along, where the row reaches it.
+
+`Spikecore_AdvancedHelmet` AND `Spikecore_Duster` both exist, so the rig
+restyles two garments at once — helmet and coat together read as the kit
+changing, where one piece reads as an odd hat. Ideology, not Royalty.
+`PrestigeMarineHelmet_Samurai` is Royalty, and is the only vanilla style
+that sets `overrideLabel`, so the marine's flip renames its garment.
+
+#### 16:00, and why dusk was abandoned
+
+```
+devtools/bridge/shoot-ab-hour.py 5175 apparelpainter-scene-bridge --hour=16
+devtools/make-ab.sh before-row-1600__cell_rect.png after-row-1600__cell_rect.png \
+                    wardrobe-row.gif                    # 446x118, 52 frames, 79 KB
+magick before-pair-1600__cell_rect.png -crop 1094x625+312+312 +repage pv-before.png
+magick after-pair-1600__cell_rect.png  -crop 1094x625+312+312 +repage pv-after.png
+# title pointsize 75, gradient 1094x156, title +0+22; HOLD 6 BLEND 3 DELAY 8
+#   -> preview-animated.gif 1094x625, 22 frames, 282 KB
+```
+
+**THE DUSK WINDOW CANNOT BE AIMED AT, ONLY ROLLED FOR** (found 2026-09-03,
+after four takes chasing it). `PinLighting` advances the clock FORWARD to
+reach its target hour, rolling into the next day when the target is behind
+now — so every driver run advances the in-game date, and the cast at a given
+hour is a function of latitude AND day of year (the code's own comment says
+so). Measured consequences on ONE roll:
+
+```
+20:00, run A   cropY 66.68  cropW +23.72
+20:00, run B   cropY 43.56  cropW -15.12     <- same hour, same roll, next day
+```
+
+So a hour chosen by measuring in one run does not reproduce in the run that
+shoots it. DAYLIGHT DOES: hours 14:00–19:00 measured identically
+(79.50/+2.04) because sun glow saturates and stops depending on the date.
+16:00 therefore reshoots to the same cast forever, which no dusk hour can
+promise. The trade, accepted knowingly: 74.52/+4.80 against the shipped
+dusk's 69.75/+12.89 — brighter and much less warm.
+
+**MEASURE THE CROP, NOT THE PAIR RECT.** The sweep captures are 9x8 cells;
+the preview is the centre 7x4 crop. The same take reads +4.79 warmth on the
+full rect and +22.07 on the crop, and three takes were optimised against the
+wrong region before this was noticed. The README's older "meanY ~28.8,
+warmth ~+10" target matches neither — the shipped preview itself measures
+69.75/+12.89 by the crop method, and that is the only reference worth
+comparing against.
+
+**Hour-pin and tick-step are not interchangeable.** `Pin lighting: +1 hour`
+is relative to the current pin; `step_game_ticks` moves the world clock.
+Nominally-equal times reached the two ways measured 79.50 and 51.96. Pick
+one method and stay inside it for a whole take.
+
+Scale note: this instance opened on the 156.25 px/cell display, so the pair
+rect is 1406x1250 (9x8 cells) where the 08-30 take was 1846x1640 at 205.1.
+The crop is derived in CELLS — 7x4 inset 2 — which travels; the pixel
+numbers do not.

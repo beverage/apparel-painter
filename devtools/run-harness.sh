@@ -21,8 +21,16 @@
 # IT WILL NOT TOUCH A RUNNING GAME. If RimWorld is running, this refuses and
 # stops. It does not kill it, and nobody should reach for pkill to get past
 # it: that instance is somebody's colony with unsaved progress. Ask, then
-# quit it by hand — or pass --alongside once the machine is confirmed able to
-# carry both.
+# quit it by hand — or pass --alongside, with the caveat below.
+#
+# --alongside IS NOT UNATTENDED (verified 2026-09-02, cost a 1200s timeout).
+# The constraint is window focus, not machine capacity: Unity throttles a
+# RimWorld that does not hold the foreground, so the test instance stalls
+# forever at "Initializing new game with mods" behind the other game's
+# window and the timeout ceiling cannot save it — no case ever runs, and the
+# log simply stops growing. Somebody must click the second window once, when
+# it appears, for the run to proceed. If nobody is at the keyboard, quit the
+# other game and run without the flag instead.
 #
 set -euo pipefail
 

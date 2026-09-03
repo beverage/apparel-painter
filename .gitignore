@@ -1,8 +1,11 @@
 # macOS
 .DS_Store
 
-# Build artifact of devtools/bbcode-preview.py, written beside its source.
+# Build artifacts of devtools/bbcode-preview.py, written beside its source.
+# The --inline variant embeds every asset as a data: URI, so it is several
+# megabytes of regenerable base64 — never commit it.
 _bbcode-preview.html
+_bbcode-preview-inline.html
 
 # Re-minted by media/banner-export.sh on every run — template + title map.
 media/cards/_export/

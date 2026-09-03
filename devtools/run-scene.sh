@@ -17,10 +17,14 @@
 # The scene mod list is RimSort's "Shift Change Studio" loadout — the
 # sibling's filming kit (Camera+, RimHUD, facial animation, VE apparel and
 # textures, all five DLCs, and the stand/storage integrations: OSP, Armor
-# Racks, ASF + sbz), taken verbatim with exactly ONE swap: Shift Change
-# out, this mod in its slot. Its gizmos land on the very outfit stands
-# being filmed and would photobomb every take. The wardrobe stage needs
-# Royalty; the studio list carries it.
+# Racks, ASF + sbz), with one swap and one addition. The swap: Shift Change
+# out, this mod in its slot — its gizmos land on the very outfit stands
+# being filmed and would photobomb every take. The addition (2026-09-02):
+# Reel's Expanded Storage and its VFE Props dependency, so both ASF storage
+# skins ride the same run. They do not collide at the def level; side by
+# side they only crowd the Furniture category with near-identical
+# buildings, which is untidy and not worth a second mode. The wardrobe
+# stage needs Royalty; the studio list carries it.
 #
 # --bridge appends the RimBridgeServer FORK (mrbeverage.rimbridgeserverfork,
 # Mods/RimBridgeServerFork) for scripted capture — screenshots, stepped
@@ -60,6 +64,10 @@ SCENE_MODS=(
   oskarpotocki.vanillafactionsexpanded.core
   nals.facialanimation
   sbz.neatstorage
+  # Reel's needs ASF and VFE Props ahead of it, and its About.xml asks to
+  # load before lwm.deepstorage. Keep these three in this order.
+  vanillaexpanded.vfepropsanddecor
+  reel.expanded.storage
   lwm.deepstorage
   khamenman.armorracks
   brrainz.cameraplus

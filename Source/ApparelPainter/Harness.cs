@@ -134,6 +134,11 @@ namespace ApparelPainter
             CaseRackAdapter();
             CaseAsfInterop();
             CaseDisplaySort();
+            CaseStyleIndex();
+            CaseStyleWrite(map);
+            CaseStylePrecept();
+            CaseStyleMenu();
+            CaseStyleOverrideLabel();
 
             Report.AppendLine($"result: {Passed} passed, {Failed} failed, {Skipped} skipped");
             Log.Message(Report.ToString());
@@ -235,6 +240,52 @@ namespace ApparelPainter
             return graphic.color;
         }
 
+        /// <summary>Texture path of the first cached body-apparel graphic —
+        /// the style twin of CachedGraphicColor, since a style swaps the
+        /// worn art rather than tinting it.</summary>
+        /// <summary>BOTH cache lists, body first. The stand keeps headgear
+        /// in its own list, and most styled apparel in the game is helmets
+        /// — reading only the body list returned null for every helmet
+        /// fixture and read as "cache unreadable" rather than "wrong
+        /// list".</summary>
+        internal static string CachedGraphicPath(Building_OutfitStand stand)
+        {
+            foreach (string fieldName in new[] { "cachedApparelGraphicsNonHeadgear", "cachedApparelGraphicsHeadgear" })
+            {
+                FieldInfo listField = typeof(Building_OutfitStand).GetField(fieldName, BindingFlags.Instance | BindingFlags.NonPublic);
+                IList list = listField?.GetValue(stand) as IList;
+                if (list == null || list.Count == 0)
+                {
+                    continue;
+                }
+                object entry = list[0];
+                FieldInfo graphicField = entry.GetType().GetField("graphic", BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public);
+                string path = (graphicField?.GetValue(entry) as Graphic)?.path;
+                if (path != null)
+                {
+                    return path;
+                }
+            }
+            return null;
+        }
+
+        /// <summary>An apparel def the index has styles for, whose first
+        /// style swaps the worn art — so the stand's cached graphic path
+        /// actually moves. Null when the loaded modlist ships no styles.</summary>
+        internal static ThingDef StyledApparelDef()
+        {
+            StyleIndex.EnsureBuilt();
+            foreach (KeyValuePair<ThingDef, List<StyleOption>> pair in StyleIndex.byDef)
+            {
+                if (pair.Key.IsApparel && pair.Value.Count > 0
+                    && !pair.Value[0].Style.wornGraphicPath.NullOrEmpty())
+                {
+                    return pair.Key;
+                }
+            }
+            return null;
+        }
+
         // ---- cases ------------------------------------------------------
 
         /// <summary>Tripwires for "the game moved": every private engine
@@ -242,6 +293,8 @@ namespace ApparelPainter
         internal static void CaseEngineMembers()
         {
             Check(StandGraphics.recacheMethod != null, "engine.RecacheGraphics", "Building_OutfitStand.RecacheGraphics gone");
+            Check(typeof(Building_OutfitStand).GetField("cachedApparelGraphicsHeadgear", BindingFlags.Instance | BindingFlags.NonPublic) != null,
+                "engine.graphicCacheHeadgearField", "Building_OutfitStand.cachedApparelGraphicsHeadgear gone");
             Check(typeof(Building_OutfitStand).GetField("cachedApparelGraphicsNonHeadgear", BindingFlags.Instance | BindingFlags.NonPublic) != null,
                 "engine.graphicCacheField", "cachedApparelGraphicsNonHeadgear gone — cache assertions blind");
             Check(typeof(Dialog_ColorPickerBase).GetMethod("ColorReadback", BindingFlags.Static | BindingFlags.NonPublic) != null,
@@ -551,7 +604,7 @@ namespace ApparelPainter
             Check(ordered, "menu.order", "headers did not stay in place: " + string.Join(", ", shown.Select(o => o.Label)));
         }
 
-        /// <summary>The generic Building_Storage door (DEC-037): a shelf
+        /// <summary>The generic Building_Storage door: a shelf
         /// with a shirt spawned in its cell lists the shirt, shows the tab,
         /// and hides it again once the apparel is gone.</summary>
         internal static void CaseStorageAdapter(Map map)
@@ -662,6 +715,246 @@ namespace ApparelPainter
 
         /// <summary>The canonical display sort: label groups, quality
         /// descends, condition descends — identical on every family.</summary>
+        /// <summary>
+        /// The index the style control reads. Two things can rot
+        /// without an error: the engine's style plumbing moving, and a
+        /// modlist producing a menu label that is really a defName —
+        /// the failure the naming rules exist to prevent.
+        /// </summary>
+        internal static void CaseStyleIndex()
+        {
+            StyleIndex.EnsureBuilt();
+            if (StyleIndex.byDef.Count == 0)
+            {
+                Skip("style.index", "no styles in this modlist (no Ideology/Anomaly/Royalty)");
+                return;
+            }
+            string leaked = null;
+            string duplicated = null;
+            foreach (KeyValuePair<ThingDef, List<StyleOption>> pair in StyleIndex.byDef)
+            {
+                List<StyleOption> options = pair.Value;
+                for (int i = 0; i < options.Count; i++)
+                {
+                    if (options[i].Label.NullOrEmpty() || options[i].Label.Contains("_"))
+                    {
+                        leaked = pair.Key.defName + "/" + options[i].Style.defName + " → '" + options[i].Label + "'";
+                    }
+                    for (int j = i + 1; j < options.Count; j++)
+                    {
+                        if (options[i].Label == options[j].Label)
+                        {
+                            duplicated = pair.Key.defName + " → '" + options[i].Label + "' twice";
+                        }
+                    }
+                }
+            }
+            Check(leaked == null, "style.index.labels", "raw defName reached a menu label: " + leaked);
+            Check(duplicated == null, "style.index.distinct", "two options share a label: " + duplicated);
+        }
+
+        /// <summary>
+        /// The style write end to end, on a real stand. The claim under
+        /// test is that SetStyleDef ALONE shows nothing — the stand bakes
+        /// worn art exactly as it bakes colour — and that our write plus
+        /// the adapter's Refresh moves it. Same shape as
+        /// CaseRecacheInvariant, because it is the same invariant.
+        /// </summary>
+        internal static void CaseStyleWrite(Map map)
+        {
+            ThingDef def = StyledApparelDef();
+            if (def == null)
+            {
+                Skip("style.write", "no styled apparel def in this modlist");
+                return;
+            }
+            Building_OutfitStand stand = SpawnStand(map, out _);
+            if (stand == null)
+            {
+                Check(false, "style.write", "could not spawn a stand fixture");
+                return;
+            }
+            try
+            {
+                ThingDef stuff = def.MadeFromStuff ? GenStuff.DefaultStuffFor(def) : null;
+                Apparel garment = (Apparel)ThingMaker.MakeThing(def, stuff);
+                // Start from no-style deliberately: MakeThing rolls
+                // randomStyle at PostMake, so a randomStyle def can arrive
+                // pre-styled and the write below would be a no-op. Latent
+                // flake, not a hypothetical — it depends on which def the
+                // index yields first.
+                StyleForcer.SetStyle(garment, null);
+                stand.AddApparel(garment);
+                string baked = CachedGraphicPath(stand);
+                if (baked == null)
+                {
+                    Check(false, "style.write", "graphic cache unreadable after add");
+                    return;
+                }
+
+                ThingStyleDef target = StyleIndex.For(def)[0].Style;
+                bool wrote = StyleForcer.SetStyle(garment, target);
+                string afterWrite = CachedGraphicPath(stand);
+                bool bakeProven = wrote && afterWrite == baked
+                    && garment.WornGraphicPath == target.wornGraphicPath;
+                ContainerAdapter.For(stand).Refresh(stand);
+                string afterRefresh = CachedGraphicPath(stand);
+                bool refreshWorks = afterRefresh != null && afterRefresh != baked;
+
+                Check(bakeProven, "style.cacheBakes",
+                    "cache followed the style WITHOUT a refresh, or the write did not land — invariant gone, recalibrate");
+                Check(refreshWorks, "style.refreshRedraws", "cache after refresh = " + afterRefresh);
+
+                // Cycle wraps through "no style" and lands back where it
+                // started, so the control can never strand an item on a
+                // style the player cannot click their way out of.
+                StyleForcer.SetStyle(garment, null);
+                int steps = StyleIndex.For(def).Count + 1;
+                for (int i = 0; i < steps; i++)
+                {
+                    StyleForcer.SetStyle(garment, StyleForcer.NextInCycle(garment, 1));
+                }
+                Check(garment.StyleDef == null, "style.cycleWraps",
+                    "a full cycle did not return to no-style: " + garment.StyleDef?.defName);
+
+                Check(!StyleForcer.CanRestyle(ThingMaker.MakeThing(ThingDefOf.Steel)),
+                    "style.guardsUnstyleable", "offered a style control on a thing with no CompStyleable");
+            }
+            finally
+            {
+                Teardown(stand);
+            }
+        }
+
+        /// <summary>
+        /// The guard AGENTS.md calls the single gate: an item whose style
+        /// comes from a PRECEPT is off limits, because
+        /// CompStyleable.SourcePrecept re-derives styleDef from the precept
+        /// and writing underneath leaves the pair disagreeing.
+        ///
+        /// The fixture has to be a def with randomStyleChance > 0, and that
+        /// is not incidental: for every other def the SourcePrecept setter
+        /// dereferences sourcePrecept.ideo, which a bare precept does not
+        /// have. Vanilla's randomStyle apparel (prestige marine helmet,
+        /// cultist masks) short-circuits that branch, so the guard can be
+        /// tested without standing up an ideoligion.
+        /// </summary>
+        internal static void CaseStylePrecept()
+        {
+            StyleIndex.EnsureBuilt();
+            ThingDef def = null;
+            foreach (KeyValuePair<ThingDef, List<StyleOption>> pair in StyleIndex.byDef)
+            {
+                if (pair.Key.IsApparel && pair.Key.randomStyleChance > 0f && pair.Value.Count > 0)
+                {
+                    def = pair.Key;
+                    break;
+                }
+            }
+            if (def == null)
+            {
+                Skip("style.guardsPrecept", "no randomStyle apparel def (no Royalty/Anomaly)");
+                return;
+            }
+
+            Thing item = ThingMaker.MakeThing(def);
+            bool offeredBefore = StyleForcer.CanRestyle(item);
+            item.StyleSourcePrecept = new Precept_ThingStyle();
+            bool offeredAfter = StyleForcer.CanRestyle(item);
+            bool writeRefused = !StyleForcer.SetStyle(item, StyleIndex.For(def)[0].Style)
+                && item.StyleDef == null;
+
+            Check(offeredBefore && !offeredAfter && writeRefused, "style.guardsPrecept",
+                $"{def.defName}: offered before={offeredBefore} after={offeredAfter}, "
+                + $"write refused={writeRefused}");
+        }
+
+        /// <summary>
+        /// The menu is authored, not sorted: "no style" leads and the rest
+        /// follow the index's cycle order, so the menu and the click-cycle
+        /// never disagree about what comes next.
+        /// </summary>
+        internal static void CaseStyleMenu()
+        {
+            ThingDef def = StyledApparelDef();
+            if (def == null)
+            {
+                Skip("style.menuOrder", "no styled apparel def in this modlist");
+                return;
+            }
+            Thing item = ThingMaker.MakeThing(def, def.MadeFromStuff ? GenStuff.DefaultStuffFor(def) : null);
+            List<StyleOption> options = StyleIndex.For(def);
+            List<FloatMenuOption> menu = ITab_ApparelPainter.StyleMenuOptions(null, null, item);
+
+            bool sized = menu.Count == options.Count + 1;
+            bool leads = sized && menu[0].Label == "ApparelPainter_NoStyle".Translate().ToString();
+            bool ordered = sized;
+            for (int i = 0; sized && i < options.Count; i++)
+            {
+                if (menu[i + 1].Label != options[i].Label)
+                {
+                    ordered = false;
+                }
+            }
+            Check(sized && leads && ordered, "style.menuOrder",
+                $"{def.defName}: {menu.Count} options for {options.Count} styles, "
+                + $"first={(menu.Count > 0 ? menu[0].Label : "-")}");
+        }
+
+        /// <summary>
+        /// A style can RENAME its item — `overrideLabel` feeds GenLabel, so
+        /// the tab row and every other label change with it. Vanilla sets it
+        /// exactly once (PrestigeMarineHelmet_Samurai → "samurai helmet"),
+        /// and both the style gif's closing beat and the store copy claim
+        /// this, so it is asserted rather than assumed.
+        /// </summary>
+        internal static void CaseStyleOverrideLabel()
+        {
+            StyleIndex.EnsureBuilt();
+            ThingDef def = null;
+            ThingStyleDef renaming = null;
+            foreach (KeyValuePair<ThingDef, List<StyleOption>> pair in StyleIndex.byDef)
+            {
+                if (!pair.Key.IsApparel)
+                {
+                    continue;
+                }
+                foreach (StyleOption option in pair.Value)
+                {
+                    if (!option.Style.overrideLabel.NullOrEmpty())
+                    {
+                        def = pair.Key;
+                        renaming = option.Style;
+                        break;
+                    }
+                }
+                if (def != null)
+                {
+                    break;
+                }
+            }
+            if (def == null)
+            {
+                Skip("style.overrideLabel", "no apparel style sets overrideLabel in this modlist");
+                return;
+            }
+
+            Thing item = ThingMaker.MakeThing(def, def.MadeFromStuff ? GenStuff.DefaultStuffFor(def) : null);
+            // MakeThing ROLLS randomStyle at PostMake (Verse/Thing.cs:790),
+            // so a prestige marine helmet arrives already samurai half the
+            // time and this case would measure a rename that had already
+            // happened — which is exactly how it failed first time.
+            StyleForcer.SetStyle(item, null);
+            string before = item.LabelCap;
+            bool wrote = StyleForcer.SetStyle(item, renaming);
+            string after = item.LabelCap;
+            bool renamed = wrote && after != before
+                && after.ToLower().Contains(renaming.overrideLabel.ToLower());
+            Check(renamed, "style.overrideLabel",
+                $"{renaming.defName}: '{before}' → '{after}', expected to contain "
+                + $"'{renaming.overrideLabel}'");
+        }
+
         internal static void CaseDisplaySort()
         {
             Apparel shirtNormal = MakeApparel("Apparel_CollarShirt");

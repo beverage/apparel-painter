@@ -57,8 +57,10 @@ def main():
         if a.startswith("--to="):
             h_to = int(a.split("=", 1)[1])
 
-    b.tool("rimworld/start_debug_game_ready",
-           {"readiness": "visual", "pauseIfNeeded": True, "timeoutMs": 300000})
+    # wait_for_game_loaded, NOT start_debug_game_ready — the sweep and the
+    # shoot that follows it must see the SAME world roll, and generating a
+    # game rolls a new one. See shoot-ab-hour.py's note.
+    b.tool("rimbridge/wait_for_game_loaded", {"timeoutMs": 300000})
     b.tool("rimworld/execute_debug_action",
            {"path": "Actions\\T: Build wardrobe stage", "x": origin[0], "z": origin[1]})
     b.tool("rimworld/step_game_ticks", {"ticks": 2, "pauseFirst": True})
