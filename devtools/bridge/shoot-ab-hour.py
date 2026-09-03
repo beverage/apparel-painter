@@ -61,8 +61,16 @@ def main():
     if hour is None:
         raise SystemExit("--hour=N required")
 
-    b.tool("rimworld/start_debug_game_ready",
-           {"readiness": "visual", "pauseIfNeeded": True, "timeoutMs": 300000})
+    # wait_for_game_loaded, NOT start_debug_game_ready. Two reasons here,
+    # and the second is specific to this driver: run-scene.sh boots with
+    # -quicktest so the game is already up (and asking for another stalls
+    # behind an unfocused window), AND generating a game rolls a NEW WORLD.
+    # The sweep-then-shoot workflow depends on both runs seeing the SAME
+    # roll — the hour is matched on that world's sun, and the README's own
+    # warning is that one look has cost three different hours across three
+    # rolls. Regenerating between sweep and shoot silently invalidates the
+    # match.
+    b.tool("rimbridge/wait_for_game_loaded", {"timeoutMs": 300000})
     b.tool("rimworld/execute_debug_action",
            {"path": "Actions\\T: Build wardrobe stage", "x": origin[0], "z": origin[1]})
     b.tool("rimworld/step_game_ticks", {"ticks": 2, "pauseFirst": True})
@@ -119,7 +127,7 @@ def main():
 
     print("\npair dims match:", dp1 == dp2, "| row dims match:", dr1 == dr2)
     print("cut:")
-    print(f"devtools/make-ab.sh '{r_before}' '{r_after}' wardrobe-row-dusk.gif")
+    print(f"devtools/make-ab.sh '{r_before}' '{r_after}' wardrobe-row.gif")
     print(f"devtools/make-ab.sh '{p_before}' '{p_after}' wardrobe-pair-dusk.gif")
 
 

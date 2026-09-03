@@ -17,10 +17,21 @@ differences as bugs.
 Pure stdlib, no dependencies.
 """
 
+import base64
 import html
 import os
 import re
 import sys
+
+#: Directory the [img] sources resolve against — set in main() to the
+#: description's own folder, which is where the media tree lives.
+MEDIA_ROOT = "."
+
+#: With --inline, images are embedded as data: URIs so the output is one
+#: self-contained file that survives being copied, attached or hosted
+#: somewhere with no access to the media tree. Off by default: the plain
+#: file is smaller and opens the same in a browser next to media/.
+INLINE = False
 
 #: Steam truncates a Workshop item description at this many characters, with
 #: no warning, mid-word, on the live page. Counted as PLAIN characters: the
@@ -123,11 +134,21 @@ def render(text):
     # icon: the placeholders are the point of the check at this stage.
     def as_img(match):
         src = match.group(1).strip()
-        # cards/… sources are the pre-publish local substitution (see
-        # main); they live beside the output file and render directly.
-        if src.startswith("http") or src.startswith("cards/"):
+        if src.startswith("http"):
             return f'<img src="{src}" alt="">'
-        return f'<div class="ph">[img] {src}</div>'
+        # Any local file that actually exists renders. This used to match
+        # `cards/` only, which quietly reduced every gif on the page to a
+        # placeholder box — so the preview certified the page's structure
+        # while showing none of its footage, which is most of the page.
+        local = os.path.join(MEDIA_ROOT, src)
+        if os.path.isfile(local):
+            if INLINE:
+                mime = "image/gif" if src.endswith(".gif") else "image/png"
+                with open(local, "rb") as handle:
+                    data = base64.b64encode(handle.read()).decode("ascii")
+                return f'<img src="data:{mime};base64,{data}" alt="">'
+            return f'<img src="{src}" alt="">'
+        return f'<div class="ph">[img] {src} (missing)</div>'
 
     out = re.sub(r"\[img\](.*?)\[/img\]", as_img, out, flags=re.S)
 
@@ -169,11 +190,16 @@ PAGE = """<!doctype html><meta charset="utf-8"><title>{title}</title>
 
 
 def main():
-    if len(sys.argv) != 2:
+    global MEDIA_ROOT, INLINE
+
+    args = [a for a in sys.argv[1:] if a != "--inline"]
+    INLINE = "--inline" in sys.argv[1:]
+    if len(args) != 1:
         print(__doc__.strip().splitlines()[2].strip(), file=sys.stderr)
         return 2
 
-    source = sys.argv[1]
+    source = args[0]
+    MEDIA_ROOT = os.path.dirname(os.path.abspath(source))
     with open(source, encoding="utf-8") as handle:
         text = handle.read()
 
@@ -181,8 +207,9 @@ def main():
     for problem in problems:
         print(f"error: {problem}", file=sys.stderr)
 
-    dest = os.path.join(os.path.dirname(os.path.abspath(source)),
-                        "_bbcode-preview.html")
+    dest = os.path.join(MEDIA_ROOT,
+                        "_bbcode-preview-inline.html" if INLINE
+                        else "_bbcode-preview.html")
     # The description's image URLs point at the public repo, which does not
     # exist until first publish — substitute the local files those URLs will
     # eventually serve, for RENDERING ONLY. Validation and the character
