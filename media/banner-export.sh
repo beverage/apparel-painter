@@ -4,9 +4,13 @@
 # with the sibling's headless-Chrome + trim recipe.
 set -eu
 
-TEMPLATE="/Users/alexbeverage/Code/Apps/rimworld/shift-change/media/cards/_export/banner-what-it-does.html"
-EXPORT="/Users/alexbeverage/Code/Apps/rimworld/apparel-painter/media/cards/_export"
-OUT="/Users/alexbeverage/Code/Apps/rimworld/apparel-painter/media/cards"
+REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+# The constellation checks its repos out side by side; SHIFT_CHANGE_REPO
+# overrides that assumption.
+SHIFT_CHANGE="${SHIFT_CHANGE_REPO:-$REPO/../shift-change}"
+TEMPLATE="$SHIFT_CHANGE/media/cards/_export/banner-what-it-does.html"
+EXPORT="$REPO/media/cards/_export"
+OUT="$REPO/media/cards"
 CHROME="/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
 PANEL="#1f242a"
 

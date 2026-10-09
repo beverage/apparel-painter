@@ -62,6 +62,11 @@ Symlink the repository into the game's `Mods/` directory as
 **Development mode** in Options for the debug log and god tools. Keyed
 string changes need a game restart, like any def-layer change.
 
+The scripts in `devtools/` assume Steam's default install on macOS. Point them
+elsewhere with `RIMWORLD_APP` (the `RimWorldMac.app` folder) and
+`RIMWORLD_USERDATA` (the folder holding `Config/`); the media scripts also take
+`SHIFT_CHANGE_REPO` for the sibling checkout whose banner template they reuse.
+
 ## Engine navigation
 
 RimWorld publishes no API documentation, so go-to-definition into the engine

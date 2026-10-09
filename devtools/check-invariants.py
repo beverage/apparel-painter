@@ -206,7 +206,7 @@ TRACKING_SKIP_FILES = {"check-invariants.py", "CLAUDE.md"}
 TRACKING_EXTS = (".cs", ".py", ".sh", ".md", ".xml", ".yml", ".yaml", ".csproj", ".bbcode")
 
 
-def check_private_tracking_refs():
+def scanned_files():
     for base, dirs, names in os.walk(ROOT):
         dirs[:] = [d for d in dirs if d not in TRACKING_SKIP_DIRS]
         for name in names:
@@ -217,13 +217,48 @@ def check_private_tracking_refs():
                 text = open(path, encoding="utf-8").read()
             except (UnicodeDecodeError, OSError):
                 continue
-            for number, line in enumerate(text.splitlines(), 1):
-                match = TRACKING_ID.search(line)
-                if match:
-                    fail("tracking-ref",
-                         "%s:%d references %s — the tracker is private; state the "
-                         "reason in the comment instead"
-                         % (rel(path), number, match.group(0)))
+            yield path, text
+
+
+def check_private_tracking_refs():
+    for path, text in scanned_files():
+        for number, line in enumerate(text.splitlines(), 1):
+            match = TRACKING_ID.search(line)
+            if match:
+                fail("tracking-ref",
+                     "%s:%d references %s — the tracker is private; state the "
+                     "reason in the comment instead"
+                     % (rel(path), number, match.group(0)))
+
+
+# ------------------------------------------------------------- home-dir paths
+
+# An absolute home path in a tracked file does two bad things at once: it names
+# the author in a PUBLIC repository, and it pins the script to exactly one
+# machine. Both were true of run-harness.sh, run-scene.sh and the media
+# scripts, which hardcoded the Steam app, the live ModsConfig.xml and the
+# sibling repository. They are now $HOME- or script-relative, with
+# RIMWORLD_APP, RIMWORLD_USERDATA and SHIFT_CHANGE_REPO overrides, which is the
+# shape this check exists to hold.
+#
+# `$HOME`, `~` and `os.path.expanduser` are all fine and deliberately NOT
+# matched. Only a literal absolute home directory is rejected. Linux and macOS
+# shapes both, so a contributor on either produces the same failure. Ported
+# from the sibling mods' check of the same name.
+HOME_PATH = re.compile(r"/(?:Users|home)/[A-Za-z0-9._-]+/")
+
+
+def check_home_paths():
+    for path, text in scanned_files():
+        for number, line in enumerate(text.splitlines(), 1):
+            match = HOME_PATH.search(line)
+            if match:
+                fail("home-path",
+                     "%s:%d hardcodes %s — this repository is public, and the "
+                     "path pins the script to one machine. Use $HOME, ~ or "
+                     "os.path.expanduser, with an env override where the "
+                     "location can differ."
+                     % (rel(path), number, match.group(0)))
 
 
 # ----------------------------------------------------------------- patch roots
@@ -316,6 +351,7 @@ def main():
     check_preview()
     check_patch_roots()
     check_private_tracking_refs()
+    check_home_paths()
     check_harness_gating()
 
     for note in notes:

@@ -35,8 +35,10 @@
 set -euo pipefail
 
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-APP="/Users/alexbeverage/Library/Application Support/Steam/steamapps/common/RimWorld/RimWorldMac.app"
-LIVE_CONFIG="/Users/alexbeverage/Library/Application Support/RimWorld/Config/ModsConfig.xml"
+# Steam's default install and RimWorld's save folder. Override either for a
+# library on another volume.
+APP="${RIMWORLD_APP:-$HOME/Library/Application Support/Steam/steamapps/common/RimWorld/RimWorldMac.app}"
+LIVE_CONFIG="${RIMWORLD_USERDATA:-$HOME/Library/Application Support/RimWorld}/Config/ModsConfig.xml"
 TESTDATA="$REPO/dist/testdata"
 LOG="$TESTDATA/Player.log"
 PROC="RimWorld by Ludeon Studios"

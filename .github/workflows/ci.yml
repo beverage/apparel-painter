@@ -42,9 +42,9 @@ jobs:
           find $dirs -name '*.xml' -print0 | xargs -0 -r xmllint --noout
 
       # Hot-reload invariants, translation keys in both directions, XML-to-C#
-      # type bindings, the <Patch> root walk, the Workshop preview size, and
-      # the no-private-tracking-IDs rule. See the script's docstring for why
-      # each exists.
+      # type bindings, the <Patch> root walk, the Workshop preview size, the
+      # no-private-tracking-IDs and no-home-paths rules, and the harness
+      # guard's shape. See the script for why each exists.
       - name: Static invariants
         run: python3 devtools/check-invariants.py
 

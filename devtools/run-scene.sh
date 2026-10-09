@@ -44,8 +44,9 @@
 set -euo pipefail
 
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-APP="/Users/alexbeverage/Library/Application Support/Steam/steamapps/common/RimWorld/RimWorldMac.app"
-LIVE_CONFIG="/Users/alexbeverage/Library/Application Support/RimWorld/Config/ModsConfig.xml"
+# Same defaults and overrides as run-harness.sh.
+APP="${RIMWORLD_APP:-$HOME/Library/Application Support/Steam/steamapps/common/RimWorld/RimWorldMac.app}"
+LIVE_CONFIG="${RIMWORLD_USERDATA:-$HOME/Library/Application Support/RimWorld}/Config/ModsConfig.xml"
 SCENEDATA="$REPO/dist/scenedata"
 LOG="$SCENEDATA/Player.log"
 PROC="RimWorld by Ludeon Studios"

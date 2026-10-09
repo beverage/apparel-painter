@@ -38,7 +38,7 @@ set -euo pipefail
 
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 DIST="$REPO/dist/ApparelPainter"
-MODS="/Users/alexbeverage/Library/Application Support/Steam/steamapps/common/RimWorld/RimWorldMac.app/Mods"
+MODS="${RIMWORLD_APP:-$HOME/Library/Application Support/Steam/steamapps/common/RimWorld/RimWorldMac.app}/Mods"
 LIVE="$MODS/ApparelPainter"
 
 # Exactly the release allowlist docs/DEVELOPMENT.md documents: what the game

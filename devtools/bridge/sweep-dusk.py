@@ -13,7 +13,7 @@ pick the hour, then shoot the real A/B at it.
 """
 import sys, os
 
-sys.path.insert(0, "/Users/alexbeverage/Code/Apps/rimworld/apparel-painter/devtools/bridge")
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from gabp import connect
 
 PAD_W, PAD_D, STANDS = 96, 64, 8
