@@ -853,6 +853,14 @@ namespace ApparelPainter
         /// have. Vanilla's randomStyle apparel (prestige marine helmet,
         /// cultist masks) short-circuits that branch, so the guard can be
         /// tested without standing up an ideoligion.
+        ///
+        /// The same choice means the fixture arrives PRE-STYLED: MakeThing
+        /// rolls randomStyle at PostMake, half the time for the helmet and
+        /// every time for the masks, and the precept setter leaves that
+        /// style alone. So it is cleared first, and "refused" means the
+        /// write left the style where it was, not that the style is null.
+        /// Asserting null made this case fail whenever the roll landed,
+        /// while the gate itself was refusing correctly.
         /// </summary>
         internal static void CaseStylePrecept()
         {
@@ -873,11 +881,17 @@ namespace ApparelPainter
             }
 
             Thing item = ThingMaker.MakeThing(def);
+            // Clear the PostMake roll. Without it the target below can equal
+            // the rolled style, and SetStyle returns false for a no-change
+            // write even with a broken gate, so that refusal would prove
+            // nothing about the gate.
+            StyleForcer.SetStyle(item, null);
             bool offeredBefore = StyleForcer.CanRestyle(item);
             item.StyleSourcePrecept = new Precept_ThingStyle();
             bool offeredAfter = StyleForcer.CanRestyle(item);
+            ThingStyleDef before = item.StyleDef;
             bool writeRefused = !StyleForcer.SetStyle(item, StyleIndex.For(def)[0].Style)
-                && item.StyleDef == null;
+                && item.StyleDef == before;
 
             Check(offeredBefore && !offeredAfter && writeRefused, "style.guardsPrecept",
                 $"{def.defName}: offered before={offeredBefore} after={offeredAfter}, "
