@@ -219,6 +219,7 @@ is a symlink to this repository, uploading through it would ship `Source/`,
 devtools/publish-workshop.sh            # stage + install, the safe default
 devtools/publish-workshop.sh stage      # build Release + assemble dist/ApparelPainter
 devtools/publish-workshop.sh install    # swap it into Mods/, dev symlink aside
+devtools/publish-workshop.sh strip      # game open at the main menu: clear what it wrote
 devtools/publish-workshop.sh restore    # dev symlink back, item id recovered
 ```
 
@@ -234,8 +235,11 @@ and prints the one confirmation Steam never gives: the item id (NONE is
 correct on the *first* publish and on no other), the staged size, the
 top-level listing, and the full browser checklist for the manual tail. That
 printed checklist is the authority; the engine facts below are why it
-exists. `restore` recovers `About/PublishedFileId.txt` into the repo for
-committing.
+exists. `strip` runs with the game open at the main menu, before Upload: a
+game that converts textures on load writes a `.dds` beside the dropper icon
+in the installed copy after `install` has checked it, so `strip` deletes it
+and refuses unless the copy then matches `dist/` file for file. `restore`
+recovers `About/PublishedFileId.txt` into the repo for committing.
 
 Three engine facts shape the manual tail:
 
@@ -244,9 +248,11 @@ Three engine facts shape the manual tail:
   the Steam web editor by hand, and no later in-game update will push it.
   `SetItemTitle` and `SetItemPreview` are not gated — the title and
   `About/Preview.png` are pushed on every update.
-- **Only `About/Preview.png` uploads.** Gallery images (the animated
-  preview, the cards) are added on the item page in the browser; the game
-  never calls `AddItemPreviewFile`.
+- **Only `About/Preview.png` uploads.** It is the animated preview,
+  `media/preview-animated.gif`'s bytes under the PNG name (CI checks they
+  match). Gallery images (the static card, the wardrobe pair, the cards) are
+  added on the item page in the browser; the game never calls
+  `AddItemPreviewFile`.
 - **`About/PublishedFileId.txt` is written into the upload root** after a
   successful publish, and the create-vs-update branch keys off it. Copy it
   back into the repo and commit it, or the next upload mints a duplicate
