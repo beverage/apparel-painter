@@ -25,15 +25,21 @@ devtools/run-harness.sh --full   # your own mod list, copied — the release gat
 devtools/run-harness.sh --alongside  # a second instance beside a live game
 ```
 
-Builds Release, launches with `-quicktest -apparelpainter-harness`, waits
+Builds Release with `-p:Harness=true`, launches with
+`-quicktest -apparelpainter-harness`, waits
 for the game to run every case and quit itself, prints the report, exits
 non-zero on any failure. Measured 2026-08-23: the minimal list in ~25 s, a
 large live list under `--full` in ~160 s — almost all of it RimWorld's own
 load time.
 
 There is deliberately **no debug-menu entry**: the launch flag is the only
-door, on every build. A suite you can only reach by the same route the
-release gate uses cannot drift away from it.
+door. A suite you can only reach by the same route the release gate uses
+cannot drift away from it.
+
+The flag itself exists only in a `-p:Harness=true` build — `Harness.cs` is
+behind `#if HARNESS`, and a plain Release build compiles the whole file away.
+`run-harness.sh` passes the property and sweeps `Assemblies/` back afterwards,
+so the command you type is unchanged.
 
 **Keep the window focused.** RimWorld is throttled hard in the background
 and a backgrounded loading screen can stall outright; the script allows

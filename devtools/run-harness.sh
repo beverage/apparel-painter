@@ -9,7 +9,8 @@
 #                                    # gate, and the only list that covers the
 #                                    # Dubs Paint Shop interop case
 #
-# Builds Release, launches RimWorld with -quicktest -apparelpainter-harness
+# Builds Release with -p:Harness=true (a plain Release build compiles the
+# harness out), launches RimWorld with -quicktest -apparelpainter-harness
 # against a throwaway save-data folder, waits for the game to run every case
 # and quit itself, prints the report. Exits non-zero if any case failed.
 #
@@ -74,8 +75,25 @@ then
 fi
 
 # The dll the game loads is the one on disk, not the one in your editor.
-dotnet build "$REPO/Source/ApparelPainter/ApparelPainter.csproj" -c Release >/dev/null \
-  || die "Release build failed — fix that first"
+#
+# -p:Harness=true is what compiles the harness and -apparelpainter-harness back
+# in. They are NOT in a shipping build (see the configuration table in the
+# csproj), so plain Release would launch a game that ignores the flag and sits
+# there until the timeout. Release codegen otherwise, exactly as shipped.
+dotnet build "$REPO/Source/ApparelPainter/ApparelPainter.csproj" -c Release -p:Harness=true >/dev/null \
+  || die "harness build failed — fix that first"
+
+# Leave Assemblies/ holding the SHIPPING dll again, whatever happens below.
+# The game's Mods entry is a symlink to this checkout, so an un-swept harness
+# build is what the next play session loads and what a careless `git add`
+# commits. Same philosophy as the csproj's CleanDevArtifacts target: hygiene by
+# construction, not by memory. It never changes this script's exit status.
+restore_shipping_dll() {
+  dotnet build "$REPO/Source/ApparelPainter/ApparelPainter.csproj" -c Release >/dev/null \
+    || printf 'WARNING: Assemblies/ still holds the HARNESS build. Rebuild with:
+         dotnet build Source/ApparelPainter/ApparelPainter.csproj -c Release\n' >&2
+}
+trap restore_shipping_dll EXIT
 
 # THE BUILD IS NOT THE THING THE GAME LOADS. -savedatafolder isolates Config,
 # Saves and Prefs, but NOT the mod: the game reads Mods/ApparelPainter out of

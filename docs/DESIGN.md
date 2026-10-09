@@ -457,10 +457,15 @@ that enforces it:
   player-faction buildings and colonists behind. Players demonstrably use
   the debug actions menu on finished mods; destructive fixtures do not
   belong in it.
-- **The harness body ships in every configuration**, because the release
-  gate must assert against the literal dll players install — and it has
-  **no debug-menu entry at all**. The `-apparelpainter-harness` launch flag
-  is the only door. See [TESTING.md](TESTING.md).
+- **The harness ships in no configuration** (changed 2026-09-17; it used to
+  ship in all of them, so that the gate asserted against the literal dll
+  players install). `#if HARNESS` is defined everywhere except a plain
+  Release build, and the guard is whole-file, so the build under test and
+  the build that goes out differ by the presence of whole types and by
+  nothing else — which is what that argument actually wanted. It has **no
+  debug-menu entry at all**; the `-apparelpainter-harness` launch flag is
+  the only door, and it exists only in a `-p:Harness=true` build. See
+  [TESTING.md](TESTING.md).
 - **One TweakValue ships** (`PreviewWhileDragging`). The bar is
   destructiveness, not reachability: it moves a preview policy, resets at
   next launch, and exists so a feel report can be walked through live.
