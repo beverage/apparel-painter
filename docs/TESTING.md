@@ -41,10 +41,12 @@ behind `#if HARNESS`, and a plain Release build compiles the whole file away.
 `run-harness.sh` passes the property and sweeps `Assemblies/` back afterwards,
 so the command you type is unchanged.
 
-**Keep the window focused.** RimWorld is throttled hard in the background
-and a backgrounded loading screen can stall outright; the script allows
-1200 s before giving up, and a run that looks hung is usually starved, not
-broken. Duration measured from an unfocused run means nothing.
+An unfocused instance used to stall on its loading screen. The cause was
+RimWorld's own `runInBackground` preference, which defaults to off in a fresh
+save-data folder, and the script now seeds it on. That fix is measured on the
+sibling mods' harnesses, not assumed: with focus held on another app
+throughout, 3 of 3 seeded runs passed and 3 of 3 unseeded runs stalled. The
+script still gives up after 1200 s, which now means a real hang.
 
 **The minimal list is for iterating; `--full` is what a release is signed
 off on.** The three integration cases (Dubs, Armor Racks, ASF) SKIP on the

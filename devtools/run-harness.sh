@@ -22,16 +22,15 @@
 # IT WILL NOT TOUCH A RUNNING GAME. If RimWorld is running, this refuses and
 # stops. It does not kill it, and nobody should reach for pkill to get past
 # it: that instance is somebody's colony with unsaved progress. Ask, then
-# quit it by hand — or pass --alongside, with the caveat below.
+# quit it by hand — or pass --alongside, with the note below.
 #
-# --alongside IS NOT UNATTENDED (verified 2026-09-02, cost a 1200s timeout).
-# The constraint is window focus, not machine capacity: Unity throttles a
-# RimWorld that does not hold the foreground, so the test instance stalls
-# forever at "Initializing new game with mods" behind the other game's
-# window and the timeout ceiling cannot save it — no case ever runs, and the
-# log simply stops growing. Somebody must click the second window once, when
-# it appears, for the run to proceed. If nobody is at the keyboard, quit the
-# other game and run without the flag instead.
+# --alongside USED TO NEED A CLICK ON THE NEW WINDOW. IT NO LONGER DOES.
+# On 2026-09-02 a run beside a live game stalled at "Initializing new game
+# with mods" until the 1200s timeout, because an unfocused instance never got
+# past its loading screen. The cause was RimWorld's own runInBackground
+# preference, off by default in a fresh save-data folder; this script now
+# seeds it on (the Prefs.xml block below has the measurement). Another game
+# can still make a run slower by competing for the CPU.
 #
 set -euo pipefail
 
@@ -41,8 +40,9 @@ LIVE_CONFIG="/Users/alexbeverage/Library/Application Support/RimWorld/Config/Mod
 TESTDATA="$REPO/dist/testdata"
 LOG="$TESTDATA/Player.log"
 PROC="RimWorld by Ludeon Studios"
-# A passing run takes ~20s; the ceiling covers a backgrounded loading screen,
-# which stalls until the window comes forward (see shift-change's notes).
+# A passing run takes ~20s on the minimal list and a few minutes on a large
+# one. The ceiling is a backstop: since runInBackground is seeded, an unfocused
+# instance no longer stalls, so a run that reaches it is a real hang.
 TIMEOUT=1200
 
 # Core, Odyssey (the outfit stand) and us. No Harmony — this mod does not
@@ -158,6 +158,39 @@ else
   xmllint --noout "$TESTDATA/Config/ModsConfig.xml" || die "generated mod list is not well-formed"
   printf 'mod list: minimal (%s mods, isolated)\n' "${#MINIMAL_MODS[@]}"
 fi
+
+# SEED Prefs.xml — ported from the siblings 2026-09-18, after a run here took
+# 635s against a measured ~25s because this script never received the fix.
+#
+# Windowed and muted because a fresh -savedatafolder has no Prefs.xml, so the
+# instance starts on RimWorld's defaults, and the default is fullscreen — which
+# on macOS asks for a fullscreen space a second instance cannot have. That part
+# is shape, not a cure.
+#
+# runInBackground IS the cure. It is one of RimWorld's own preferences
+# (Verse/PrefsData.cs:68) and DEFAULTS TO FALSE — the field has no initializer,
+# and PrefsData.Apply() hands it straight to Unity as
+# `Application.runInBackground` (:153). A fresh -savedatafolder therefore built a
+# test instance with it OFF, and an unfocused instance then stalls on its
+# loading screen: measured on the siblings 2026-09-11, 6 runs with focus held on
+# another app, True passed 3/3 (startup in 20s) and False stalled 3/3.
+#
+# It lands early enough to matter because Prefs.Init() ENDS with an unqualified
+# Apply() (Prefs.cs:861 — a grep for `Prefs.Apply` does not find it), inside
+# Root.CheckGlobalInit() (Root.cs:104). Root.cs:72 sets the same flag
+# unconditionally and is TOO LATE: with the pref false, an unfocused instance
+# never reaches it.
+{
+  printf '<?xml version="1.0" encoding="utf-8"?>\n<PrefsData>\n'
+  printf '  <screenWidth>1280</screenWidth>\n'
+  printf '  <screenHeight>720</screenHeight>\n'
+  printf '  <fullscreen>False</fullscreen>\n'
+  printf '  <runInBackground>True</runInBackground>\n'
+  printf '  <volumeMaster>0</volumeMaster>\n'
+  printf '</PrefsData>\n'
+} > "$TESTDATA/Config/Prefs.xml"
+xmllint --noout "$TESTDATA/Config/Prefs.xml" || die "generated Prefs.xml is not well-formed"
+printf 'display: windowed 1280x720, muted, runInBackground=True\n'
 
 printf 'save data: %s\n' "$TESTDATA"
 printf 'launching…\n'

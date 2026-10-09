@@ -194,10 +194,10 @@ minimal list and assert on `--full`. What the cases cover, what they
 deliberately do not, and the isolation rules are all in
 [TESTING.md](TESTING.md).
 
-**Keep the window focused.** RimWorld is throttled hard in the background,
-and a backgrounded loading screen can stall outright; the script allows
-1200 s before giving up, and a run that looks hung is usually starved, not
-broken.
+The window does not need focus. A fresh save-data folder used to start with
+RimWorld's `runInBackground` preference off, and an unfocused instance then
+stalled on its loading screen; the script now seeds it on. See
+[TESTING.md](TESTING.md).
 
 ## Workshop upload
 
