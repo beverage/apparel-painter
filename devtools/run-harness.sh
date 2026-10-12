@@ -177,10 +177,16 @@ EOF
     printf 'mod list: activated mrbeverage.apparelpainter in the copy (old id migrated or appended)\n'
   fi
 else
-  version="$(grep -m1 '<version>' "$LIVE_CONFIG" 2>/dev/null || printf '  <version>1.6.4871 rev595</version>')"
+  # No <version> element, on purpose. ModsConfig's static constructor throws
+  # the whole list away ("Mods config data is from version ... Resetting.")
+  # when that element names another major or minor version than the game
+  # running, and skips the check when it is absent. This used to copy the line
+  # from the live ModsConfig.xml, which carries the version of whichever game
+  # last wrote it: once a 1.7 game had, every 1.6 run here booted without this
+  # mod and the harness never ran.
   {
     printf '<?xml version="1.0" ?>\n<ModsConfigData>\n'
-    printf '%s\n  <activeMods>\n' "$version"
+    printf '  <activeMods>\n'
     for mod in "${MINIMAL_MODS[@]}"
     do
       printf '    <li>%s</li>\n' "$mod"
