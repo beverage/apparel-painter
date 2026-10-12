@@ -186,16 +186,19 @@ cutting tools.
 Behaviour is verified by the regression harness, inside the real engine:
 
 ```bash
-devtools/run-harness.sh          # three-mod list — the iteration loop, ~20 s
+devtools/run-harness.sh          # three mods plus your DLCs — the iteration loop, ~20 s
 devtools/run-harness.sh --full   # your own mod list, copied — the release gate
 devtools/run-harness.sh --alongside  # a second instance beside a live game
+devtools/run-harness.sh --no-dlc # the three, and no DLC but Odyssey
 ```
 
 One command, no hands: builds Release with the harness compiled in
 (`-p:Harness=true`), launches an isolated instance, waits
 for it to run every case and quit itself, prints the report, exits non-zero
 on failure. The integration cases (Dubs, Armor Racks, ASF) SKIP on the
-minimal list and assert on `--full`. What the cases cover, what they
+minimal list and assert on `--full`. The minimal list loads every DLC you
+own; `--no-dlc` keeps only Odyssey, and the style cases SKIP with the rest.
+What the cases cover, what they
 deliberately do not, and the isolation rules are all in
 [TESTING.md](TESTING.md).
 
@@ -342,7 +345,7 @@ docs LICENSE README.md`.
 
 | Script | Does |
 |---|---|
-| `run-harness.sh` | Runs the test suite headless in an isolated instance. `--full`, `--alongside`. |
+| `run-harness.sh` | Runs the test suite headless in an isolated instance. `--full`, `--alongside`, `--no-dlc`. |
 | `run-scene.sh` | Isolated interactive instance with the filming mod list. `--media`, `--bridge`, `--full`, `--alongside`. |
 | `publish-workshop.sh` | Stages a Workshop upload out of the working tree (allowlist, `.dds` sweep, stray-dll check) and swaps it into `Mods/`. `stage`, `install`, `restore`. |
 | `make-ab.sh` | Before/after crossfade gif from an aligned capture pair. |

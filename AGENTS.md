@@ -34,10 +34,15 @@ ever tracked.
 The regression harness is the release gate:
 
 ```bash
-devtools/run-harness.sh          # three-mod list, ~20s, no hands
+devtools/run-harness.sh          # three mods plus your DLCs, ~20s, no hands
 devtools/run-harness.sh --full   # your live mod list — covers the Dubs
                                  # interop case; run before a release
+devtools/run-harness.sh --no-dlc # the three, and no DLC but Odyssey
 ```
+
+The plain run loads every DLC installed (the game switches on any expansion
+the mod list has not named as known), so `--no-dlc` is the only run that is a
+game without them. The style cases SKIP there.
 
 It launches an ISOLATED game instance (-savedatafolder; it refuses to touch
 a running one), fires the mod's real entry points at spawned fixtures, and

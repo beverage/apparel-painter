@@ -4,10 +4,26 @@
 # instance. Adapted from shift-change's run-harness.sh — same isolation, same
 # safety posture, same exit-code contract.
 #
-#   devtools/run-harness.sh          # a three-mod list — the iteration loop
+#   devtools/run-harness.sh          # three mods plus your DLCs — the iteration loop
 #   devtools/run-harness.sh --full   # your own mod list, copied — the release
 #                                    # gate, and the only list that covers the
 #                                    # Dubs Paint Shop interop case
+#   devtools/run-harness.sh --no-dlc # the three, and no DLC but Odyssey
+#
+# THE MINIMAL LIST CARRIES EVERY DLC YOU OWN, UNLESS --no-dlc
+#
+# RimWorld switches on any installed expansion that ModsConfig.xml does not
+# list under knownExpansions (ModsConfig's static constructor). This list used
+# to name Odyssey alone there, which switched nothing off, so the default is
+# Core, all five DLCs and us, and every pass count recorded before this was
+# measured that way. It stays the default (decided 2026-10-12): most players
+# own them, and the style cases need Ideology, Royalty or Anomaly to run.
+#
+# --no-dlc lists all five as known, so only the DLCs the list itself names
+# stay on: Odyssey, whose outfit stand nearly every case spawns. Without the
+# other four the style index is empty and the style cases SKIP, as they would
+# for a player who owns none of them. Neat Edges' copy of this option found a
+# bug that only players without Ideology could hit.
 #
 # Builds Release with -p:Harness=true (a plain Release build compiles the
 # harness out), launches RimWorld with -quicktest -apparelpainter-harness
@@ -49,25 +65,41 @@ TIMEOUT=1200
 
 # Core, Odyssey (the outfit stand) and us. No Harmony — this mod does not
 # use it. Dubs Paint Shop is deliberately absent here: its interop case
-# SKIPs on this list and runs on --full.
+# SKIPs on this list and runs on --full. The other four DLCs come on by
+# themselves unless --no-dlc is passed; see the top of this file.
 MINIMAL_MODS=(
   ludeon.rimworld
   ludeon.rimworld.odyssey
   mrbeverage.apparelpainter
 )
 
+# Listed as known by --no-dlc, so the game leaves off every one the list does
+# not name. Naming one a player does not own does nothing.
+EXPANSIONS=(
+  ludeon.rimworld.royalty
+  ludeon.rimworld.ideology
+  ludeon.rimworld.biotech
+  ludeon.rimworld.anomaly
+  ludeon.rimworld.odyssey
+)
+
 FULL=0
 ALONGSIDE=0
+NO_DLC=0
 for arg in "$@"
 do
   case "$arg" in
     --full) FULL=1 ;;
     --alongside) ALONGSIDE=1 ;;
-    *) printf 'unknown option: %s (--full | --alongside)\n' "$arg" >&2; exit 2 ;;
+    --no-dlc) NO_DLC=1 ;;
+    *) printf 'unknown option: %s (--full | --alongside | --no-dlc)\n' "$arg" >&2; exit 2 ;;
   esac
 done
 
 die() { printf 'error: %s\n' "$1" >&2; exit 1; }
+
+[ "$FULL" = "0" ] || [ "$NO_DLC" = "0" ] \
+  || die "--no-dlc shapes the minimal list, and --full uses yours instead; pick one"
 
 if pgrep -x "$PROC" >/dev/null && [ "$ALONGSIDE" = "0" ]
 then
@@ -153,12 +185,21 @@ else
     do
       printf '    <li>%s</li>\n' "$mod"
     done
-    printf '  </activeMods>\n  <knownExpansions>\n'
-    printf '    <li>ludeon.rimworld.odyssey</li>\n'
-    printf '  </knownExpansions>\n</ModsConfigData>\n'
+    printf '  </activeMods>\n'
+    if [ "$NO_DLC" = "1" ]
+    then
+      printf '  <knownExpansions>\n'
+      for dlc in "${EXPANSIONS[@]}"
+      do
+        printf '    <li>%s</li>\n' "$dlc"
+      done
+      printf '  </knownExpansions>\n'
+    fi
+    printf '</ModsConfigData>\n'
   } > "$TESTDATA/Config/ModsConfig.xml"
   xmllint --noout "$TESTDATA/Config/ModsConfig.xml" || die "generated mod list is not well-formed"
-  printf 'mod list: minimal (%s mods, isolated)\n' "${#MINIMAL_MODS[@]}"
+  printf 'mod list: minimal (%s mods, isolated, %s)\n' "${#MINIMAL_MODS[@]}" \
+    "$([ "$NO_DLC" = "1" ] && printf 'no DLC unless named' || printf 'plus every DLC installed')"
 fi
 
 # SEED Prefs.xml — ported from the siblings 2026-09-18, after a run here took

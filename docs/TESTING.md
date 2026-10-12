@@ -20,9 +20,10 @@ Engine claims were checked against the decompiled game assembly, version
 ## Running it
 
 ```bash
-devtools/run-harness.sh          # a three-mod list — the iteration loop
+devtools/run-harness.sh          # three mods plus your DLCs — the iteration loop
 devtools/run-harness.sh --full   # your own mod list, copied — the release gate
 devtools/run-harness.sh --alongside  # a second instance beside a live game
+devtools/run-harness.sh --no-dlc # the three, and no DLC but Odyssey
 ```
 
 Builds Release with `-p:Harness=true`, launches with
@@ -31,6 +32,16 @@ for the game to run every case and quit itself, prints the report, exits
 non-zero on any failure. Measured 2026-08-23: the minimal list in ~25 s, a
 large live list under `--full` in ~160 s — almost all of it RimWorld's own
 load time.
+
+**The minimal list carries every DLC you own** unless `--no-dlc` says
+otherwise. RimWorld switches on any installed expansion the mod list does not
+name under `knownExpansions`, so the default run is Core, all five DLCs and
+this mod. `--no-dlc` names all five as known, which leaves only Odyssey on,
+because the list asks for it: nearly every case spawns its outfit stand.
+Ideology, Royalty and Anomaly are the only packs that define styles, so
+without them the five style cases SKIP, as they would for a player who owns
+none of the three. Measured 2026-10-13 on 1.6.4871: 31 passed and 3 skipped
+by default, 22 passed and 8 skipped with `--no-dlc`.
 
 There is deliberately **no debug-menu entry**: the launch flag is the only
 door. A suite you can only reach by the same route the release gate uses
