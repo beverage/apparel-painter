@@ -27,24 +27,40 @@
     <Nullable>disable</Nullable>
   </PropertyGroup>
 
-  <!-- Three configurations, three jobs (the shift-change pattern):
+  <!-- Three configurations and one switch, four jobs (the shift-change
+       pattern):
 
-         Debug    SCENES, ECR      hand-driving + UI iteration
-         Media    SCENES, no ECR   footage: Release codegen, stage present
-         Release  neither          shipping, and the harness release gate
+         Debug             SCENES, HARNESS, ECR      hand-driving + UI iteration
+         Media             SCENES, HARNESS, no ECR   footage: Release codegen, stage present
+         Release           neither                   shipping
+         Release+Harness   HARNESS                   what run-harness.sh drives
 
        SCENES compiles in the gif-stage builder and its [DebugAction]. It
        must never ship: the stage clears a ~260-cell footprint outright and
-       leaves player-faction buildings and colonists behind. The harness is
-       NOT scenes-gated — it ships in every configuration, flag-guarded,
-       because run-harness.sh asserts against the literal dll players
-       install. -->
+       leaves player-faction buildings and colonists behind. -->
   <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
     <DefineConstants>$(DefineConstants);SCENES</DefineConstants>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)' == 'Media'">
     <DefineConstants>$(DefineConstants);TRACE;SCENES</DefineConstants>
     <Optimize>true</Optimize>
+  </PropertyGroup>
+
+  <!-- HARNESS: Harness.cs entire — the regression suite, its flag-gated boot
+       and the -apparelpainter-harness launch flag. It does not ship. A player
+       cannot realistically find the flag, but it is ours to not leave lying in
+       their install, and what it starts spawns fixtures and then quits the
+       game.
+
+       It used to ship in every configuration on the argument that a gate is
+       only worth running if it asserts against the literal assembly players
+       install. That argument is now paid differently: HARNESS may only ever be
+       a WHOLE-FILE guard, so a shipping build and a harness build differ by
+       the presence of the harness types and by nothing else — no shipping code
+       path changes shape with it. check-invariants.py enforces that, and
+       check-shipped-dll.py enforces the absence in the dll that goes out. -->
+  <PropertyGroup Condition="'$(Configuration)' != 'Release' Or '$(Harness)' == 'true'">
+    <DefineConstants>$(DefineConstants);HARNESS</DefineConstants>
   </PropertyGroup>
 
   <ItemGroup>

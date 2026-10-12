@@ -12,9 +12,9 @@ that chose the hour, so the measured cast is the cast you get.
 Everything else is shoot-ab.py verbatim: same rects, same pinned zooms, same
 paint-in-between, so make-ab.sh's morph still has pixel correspondence.
 """
-import sys
+import os, sys
 
-sys.path.insert(0, "/Users/alexbeverage/Code/Apps/rimworld/apparel-painter/devtools/bridge")
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from gabp import connect
 
 PAD_W, PAD_D, STANDS = 96, 64, 8

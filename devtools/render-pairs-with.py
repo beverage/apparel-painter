@@ -12,8 +12,13 @@ import base64
 import importlib.util
 import os
 
-SC_MEDIA = "/Users/alexbeverage/Code/Apps/rimworld/shift-change/media"
-AP_EXPORT = "/Users/alexbeverage/Code/Apps/rimworld/apparel-painter/media/cards/_export"
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+# The constellation checks its repos out side by side; SHIFT_CHANGE_REPO
+# overrides that assumption.
+SHIFT_CHANGE = os.environ.get(
+    "SHIFT_CHANGE_REPO", os.path.join(os.path.dirname(ROOT), "shift-change"))
+SC_MEDIA = os.path.join(SHIFT_CHANGE, "media")
+AP_EXPORT = os.path.join(ROOT, "media", "cards", "_export")
 TEMPLATE = os.path.join(SC_MEDIA, "cards", "_export", "banner-what-it-does.html")
 
 spec = importlib.util.spec_from_file_location(

@@ -25,20 +25,31 @@ Output goes straight to `Assemblies/`, which must contain exactly one file.
 Any non-Debug build runs a `CleanDevArtifacts` target that deletes anything
 else it finds there, including hot-reload leftovers.
 
-### Three configurations
+### Three configurations and a switch
 
-| Config | `SCENES` | ECR | Job |
-|---|---|---|---|
-| `Debug` | yes | yes | hand-driving and UI iteration |
-| `Media` | yes | no | footage: Release codegen, film-set stages present |
-| `Release` | no | no | shipping, and the harness release gate |
+| Config | `SCENES` | `HARNESS` | ECR | Job |
+|---|---|---|---|---|
+| `Debug` | yes | yes | yes | hand-driving and UI iteration |
+| `Media` | yes | yes | no | footage: Release codegen, film-set stages present |
+| `Release` | no | no | no | shipping |
+| `Release -p:Harness=true` | no | yes | no | what `run-harness.sh` builds and drives |
 
 `SCENES` compiles in the film-set stage builders and their `[DebugAction]`s.
 **Release ships none of them** — each stage clears a multi-hundred-cell
 footprint without confirmation, which has no business within a player's
-reach. The harness *body* and its `-apparelpainter-harness` launch flag ship
-in every configuration, deliberately, because the release gate must assert
-against the literal dll players install.
+reach.
+
+`HARNESS` compiles in `Harness.cs` entire, including the
+`-apparelpainter-harness` launch flag, and **Release ships neither**. Dev
+tooling is not a player's to carry. `run-harness.sh` passes `-p:Harness=true`
+itself and sweeps `Assemblies/` afterwards, so nothing in the loop changes for
+you.
+
+The guard is **whole-file, never inline** — that is what keeps the build the
+harness runs against and the build that ships different only in which types are
+present, rather than different in shape. `check-invariants.py` enforces the
+rule; `check-shipped-dll.py` enforces the outcome on the artifact, and
+`publish-workshop.sh` runs it again against the staged copy.
 
 **All three configurations write the same `Assemblies/ApparelPainter.dll`**,
 so end every session — including filming sessions — with a Release build.
@@ -50,6 +61,11 @@ Symlink the repository into the game's `Mods/` directory as
 `ApparelPainter`, then enable it in the in-game mod list. Enable
 **Development mode** in Options for the debug log and god tools. Keyed
 string changes need a game restart, like any def-layer change.
+
+The scripts in `devtools/` assume Steam's default install on macOS. Point them
+elsewhere with `RIMWORLD_APP` (the `RimWorldMac.app` folder) and
+`RIMWORLD_USERDATA` (the folder holding `Config/`); the media scripts also take
+`SHIFT_CHANGE_REPO` for the sibling checkout whose banner template they reuse.
 
 ## Engine navigation
 
@@ -80,10 +96,13 @@ the real DLLs; if not, it falls back to Krafs. Overrides:
 | Non-standard install location | `RimWorldManaged=/path/to/Managed` (env var or `-p:`) |
 | Reproduce a game-less build (a fresh clone, a CI runner) | `-p:DisableLocalGameRefs=true` |
 
-There is no CI on this repository yet. The checks a pipeline would run — the
-Release build against Krafs, the BBCode validation, the single-dll hygiene —
-run locally as part of the release ritual, and the sibling repo's workflow
-is the template when it lands here.
+CI (`.github/workflows/ci.yml`) builds through that game-less path on every
+push to `main`, every pull request and every `v*` tag. It checks XML
+well-formedness, `check-invariants.py`, the BBCode validator, the preview's
+content and the committed dll, then builds Media, Release and Release with the
+harness, and re-checks the fresh Release dll. A `v*` tag also packages the
+release allowlist as a zip on a GitHub Release. Every step runs locally from
+`devtools/` too; Workshop publishing stays manual (see Workshop upload below).
 
 ## Hot reload
 
@@ -172,17 +191,18 @@ devtools/run-harness.sh --full   # your own mod list, copied — the release gat
 devtools/run-harness.sh --alongside  # a second instance beside a live game
 ```
 
-One command, no hands: builds Release, launches an isolated instance, waits
+One command, no hands: builds Release with the harness compiled in
+(`-p:Harness=true`), launches an isolated instance, waits
 for it to run every case and quit itself, prints the report, exits non-zero
 on failure. The integration cases (Dubs, Armor Racks, ASF) SKIP on the
 minimal list and assert on `--full`. What the cases cover, what they
 deliberately do not, and the isolation rules are all in
 [TESTING.md](TESTING.md).
 
-**Keep the window focused.** RimWorld is throttled hard in the background,
-and a backgrounded loading screen can stall outright; the script allows
-1200 s before giving up, and a run that looks hung is usually starved, not
-broken.
+The window does not need focus. A fresh save-data folder used to start with
+RimWorld's `runInBackground` preference off, and an unfocused instance then
+stalled on its loading screen; the script now seeds it on. See
+[TESTING.md](TESTING.md).
 
 ## Workshop upload
 
@@ -199,6 +219,7 @@ is a symlink to this repository, uploading through it would ship `Source/`,
 devtools/publish-workshop.sh            # stage + install, the safe default
 devtools/publish-workshop.sh stage      # build Release + assemble dist/ApparelPainter
 devtools/publish-workshop.sh install    # swap it into Mods/, dev symlink aside
+devtools/publish-workshop.sh strip      # game open at the main menu: clear what it wrote
 devtools/publish-workshop.sh restore    # dev symlink back, item id recovered
 ```
 
@@ -214,8 +235,11 @@ and prints the one confirmation Steam never gives: the item id (NONE is
 correct on the *first* publish and on no other), the staged size, the
 top-level listing, and the full browser checklist for the manual tail. That
 printed checklist is the authority; the engine facts below are why it
-exists. `restore` recovers `About/PublishedFileId.txt` into the repo for
-committing.
+exists. `strip` runs with the game open at the main menu, before Upload: a
+game that converts textures on load writes a `.dds` beside the dropper icon
+in the installed copy after `install` has checked it, so `strip` deletes it
+and refuses unless the copy then matches `dist/` file for file. `restore`
+recovers `About/PublishedFileId.txt` into the repo for committing.
 
 Three engine facts shape the manual tail:
 
@@ -224,9 +248,11 @@ Three engine facts shape the manual tail:
   the Steam web editor by hand, and no later in-game update will push it.
   `SetItemTitle` and `SetItemPreview` are not gated — the title and
   `About/Preview.png` are pushed on every update.
-- **Only `About/Preview.png` uploads.** Gallery images (the animated
-  preview, the cards) are added on the item page in the browser; the game
-  never calls `AddItemPreviewFile`.
+- **Only `About/Preview.png` uploads.** It is the animated preview,
+  `media/preview-animated.gif`'s bytes under the PNG name (CI checks they
+  match). Gallery images (the static card, the wardrobe pair, the cards) are
+  added on the item page in the browser; the game never calls
+  `AddItemPreviewFile`.
 - **`About/PublishedFileId.txt` is written into the upload root** after a
   successful publish, and the create-vs-update branch keys off it. Copy it
   back into the repo and commit it, or the next upload mints a duplicate
@@ -297,7 +323,7 @@ flowchart LR
 | `FloatMenu_Ordered.cs` | A FloatMenu that keeps caller order, so the dropper menu's section headers stay in place. |
 | `ApparelPainterMod.cs` | Mod entry and ModSettings (saved swatches). Deliberately no settings window. |
 | `ApparelPainterTex.cs` | Startup-loaded texture handles: the dropper icon. |
-| `Harness.cs` | The regression suite and its flag-gated boot. Body ships in every configuration; see [TESTING.md](TESTING.md). |
+| `Harness.cs` | The regression suite and its flag-gated boot. `#if HARNESS`, so it ships in no configuration; see [TESTING.md](TESTING.md). |
 | `DebugTools_*.cs` | `SCENES` only. The film-set stages and scene builders behind every gif and card. Destructive by design; never shipped. |
 
 ### Content

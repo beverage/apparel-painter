@@ -25,9 +25,19 @@
 #   devtools/publish-workshop.sh            # stage + install, the safe default
 #   devtools/publish-workshop.sh stage      # build + assemble dist/ApparelPainter
 #   devtools/publish-workshop.sh install    # swap it into Mods/, dev link aside
+#   devtools/publish-workshop.sh strip      # with the game at the main menu:
+#                                           # delete what it wrote into the copy
 #   devtools/publish-workshop.sh restore    # dev link back, recover the item id
 #
-# The normal run is (no argument) -> upload in game -> restore.
+# The normal run is (no argument) -> launch the game -> strip -> upload in
+# game -> restore.
+#
+# STRIP EXISTS BECAUSE THE GAME WRITES INTO THE COPY IT IS ABOUT TO UPLOAD.
+# Texture tools that convert PNGs to .dds on load (Faster Game Loading, mod
+# managers with an auto-convert option) write the .dds beside each PNG in the
+# installed copy, after `install` has checked it and before Upload reads it.
+# The sibling Neat Edges' first upload carried 28 of them this way (2026-10-07).
+# This mod ships one texture, so the exposure is one file; it is the same bug.
 #
 # STAGING ALONE CHANGES NOTHING ABOUT WHAT THE GAME UPLOADS. `stage` only fills
 # dist/; until `install` has replaced the dev symlink, the uploader still
@@ -38,7 +48,7 @@ set -euo pipefail
 
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 DIST="$REPO/dist/ApparelPainter"
-MODS="/Users/alexbeverage/Library/Application Support/Steam/steamapps/common/RimWorld/RimWorldMac.app/Mods"
+MODS="${RIMWORLD_APP:-$HOME/Library/Application Support/Steam/steamapps/common/RimWorld/RimWorldMac.app}/Mods"
 LIVE="$MODS/ApparelPainter"
 
 # Exactly the release allowlist docs/DEVELOPMENT.md documents: what the game
@@ -96,6 +106,14 @@ cmd_stage() {
   strays="$(find "$DIST/Assemblies" -type f ! -name 'ApparelPainter.dll' | wc -l | tr -d ' ')"
   [ "$strays" = "0" ] || die "Assemblies/ holds $strays file(s) besides ApparelPainter.dll"
 
+  # What is about to go out, checked as the bytes about to go out — not as the
+  # copy in the repo. No debug scenes, no harness, no -apparelpainter-harness
+  # launch flag, feature surface intact. The Release build above should make
+  # all of that true by construction; this is the assertion that it did, on
+  # the one file a subscriber actually receives.
+  python3 "$REPO/devtools/check-shipped-dll.py" "$DIST/Assemblies/ApparelPainter.dll" \
+    || die "the staged dll is not shippable — see above, and do not upload it"
+
   printf '\nstaged %s\n' "$DIST"
   du -sh "$DIST"
   printf '\ncontents:\n'
@@ -152,11 +170,15 @@ upload entry does not exist at all; Page_ModsConfig.cs:718):
   1. Enable Apparel Painter in the mod list and confirm it loads clean:
      exactly ONE Apparel Painter entry, and no "same packageId multiple
      times" error in the log.
-  2. Select it -> More actions -> Upload to Steam Workshop -> Confirm.
+  2. TERMINAL, with the game still open at the main menu:
+     devtools/publish-workshop.sh strip
+     It removes the .dds files the game wrote into the copy while starting,
+     and must report that the copy matches the staged one before you upload.
+  3. Select it -> More actions -> Upload to Steam Workshop -> Confirm.
      The confirm dialog has a "Tag as translation" checkbox — leave it
      UNTICKED, or the item trades its Mod tag for Translation and drops out
      of the Workshop's default mod browse.
-  3. Wait for the progress dialog to finish and the item page to open.
+  4. Wait for the progress dialog to finish and the item page to open.
      Then quit the game.
 
 THEN, IMMEDIATELY, IN THIS ORDER:
@@ -193,13 +215,15 @@ THEN, IMMEDIATELY, IN THIS ORDER:
      of which are in About.xml by design. Validate first if it changed:
      devtools/bbcode-preview.py reports tags and the 8,000-character margin.
 
-  6. BROWSER: add the gallery images through the item page's owner controls.
-     media/preview-animated.gif goes in FIRST — it is gallery slot 1 — then
-     media/gallery-wardrobe-before.png and -after.png, and any cards worth
-     repeating (media/cards/). All current candidates are under Steam's
-     ~1 MB item-image limit; the game itself uploads only About/Preview.png
-     (SetItemPreview, Workshop.cs:266-272) and never calls
-     AddItemPreviewFile, so this browser step is the only route up.
+  6. BROWSER: add the gallery images through the item page's owner controls,
+     if any changed: media/preview-static.png (the titled static card, gallery
+     slot 1), then media/gallery-wardrobe-before.png
+     and -after.png, and any cards worth repeating (media/cards/). The
+     animated preview needs nothing here: About/Preview.png IS
+     media/preview-animated.gif's bytes under the PNG name, and the game
+     uploads it with every update (SetItemPreview, Workshop.cs:266-272). It
+     never calls AddItemPreviewFile, so this browser step is the only route
+     up for the gallery.
 
   7. VERIFY AS A SUBSCRIBER, still private: subscribe in the browser, launch
      the game, and enable the STEAM-sourced Apparel Painter entry (with the
@@ -213,6 +237,27 @@ THEN, IMMEDIATELY, IN THIS ORDER:
      one-line edit planned there) and commit it with PublishedFileId.txt if
      that is still uncommitted.
 EOF
+}
+
+cmd_strip() {
+  # Deliberately no ensure_game_closed: this runs with the game open, after it
+  # has loaded every texture, so the files it removes are no longer read.
+  [ -d "$LIVE" ] && [ ! -L "$LIVE" ] || die "$LIVE is not an installed copy; run install first"
+  [ -d "$DIST" ] || die "nothing staged to compare against; run stage first"
+  local count
+  count="$(find "$LIVE" \( -name '*.dds' -o -name '.DS_Store' \) | wc -l | tr -d ' ')"
+  find "$LIVE" \( -name '*.dds' -o -name '.DS_Store' \) -delete
+  printf 'removed %s file(s) the game wrote into the upload\n' "$count"
+  printf 'size:      %s (staged: %s)\n' "$(du -sh "$LIVE" | cut -f1)" "$(du -sh "$DIST" | cut -f1)"
+  printf 'top level: %s\n' "$(ls -1 "$LIVE" | tr '\n' ' ')"
+  # Compared against the staged copy file by file, so anything else the game
+  # added between install and upload shows up here too. The item id is the
+  # one file the uploader itself writes, so it is the one difference allowed.
+  local drift
+  drift="$(diff -rq "$DIST" "$LIVE" | grep -v 'PublishedFileId.txt' || true)"
+  [ -z "$drift" ] || die "the installed copy differs from the staged one; do not upload:
+$drift"
+  printf 'matches the staged copy: ready to upload\n'
 }
 
 cmd_restore() {
@@ -247,6 +292,7 @@ case "${1:-publish}" in
   publish) cmd_stage; cmd_install ;;
   stage)   cmd_stage ;;
   install) cmd_install ;;
+  strip)   cmd_strip ;;
   restore) cmd_restore ;;
-  *)       die "unknown command: $1 (publish | stage | install | restore)" ;;
+  *)       die "unknown command: $1 (publish | stage | install | strip | restore)" ;;
 esac

@@ -206,7 +206,7 @@ TRACKING_SKIP_FILES = {"check-invariants.py", "CLAUDE.md"}
 TRACKING_EXTS = (".cs", ".py", ".sh", ".md", ".xml", ".yml", ".yaml", ".csproj", ".bbcode")
 
 
-def check_private_tracking_refs():
+def scanned_files():
     for base, dirs, names in os.walk(ROOT):
         dirs[:] = [d for d in dirs if d not in TRACKING_SKIP_DIRS]
         for name in names:
@@ -217,13 +217,48 @@ def check_private_tracking_refs():
                 text = open(path, encoding="utf-8").read()
             except (UnicodeDecodeError, OSError):
                 continue
-            for number, line in enumerate(text.splitlines(), 1):
-                match = TRACKING_ID.search(line)
-                if match:
-                    fail("tracking-ref",
-                         "%s:%d references %s — the tracker is private; state the "
-                         "reason in the comment instead"
-                         % (rel(path), number, match.group(0)))
+            yield path, text
+
+
+def check_private_tracking_refs():
+    for path, text in scanned_files():
+        for number, line in enumerate(text.splitlines(), 1):
+            match = TRACKING_ID.search(line)
+            if match:
+                fail("tracking-ref",
+                     "%s:%d references %s — the tracker is private; state the "
+                     "reason in the comment instead"
+                     % (rel(path), number, match.group(0)))
+
+
+# ------------------------------------------------------------- home-dir paths
+
+# An absolute home path in a tracked file does two bad things at once: it names
+# the author in a PUBLIC repository, and it pins the script to exactly one
+# machine. Both were true of run-harness.sh, run-scene.sh and the media
+# scripts, which hardcoded the Steam app, the live ModsConfig.xml and the
+# sibling repository. They are now $HOME- or script-relative, with
+# RIMWORLD_APP, RIMWORLD_USERDATA and SHIFT_CHANGE_REPO overrides, which is the
+# shape this check exists to hold.
+#
+# `$HOME`, `~` and `os.path.expanduser` are all fine and deliberately NOT
+# matched. Only a literal absolute home directory is rejected. Linux and macOS
+# shapes both, so a contributor on either produces the same failure. Ported
+# from the sibling mods' check of the same name.
+HOME_PATH = re.compile(r"/(?:Users|home)/[A-Za-z0-9._-]+/")
+
+
+def check_home_paths():
+    for path, text in scanned_files():
+        for number, line in enumerate(text.splitlines(), 1):
+            match = HOME_PATH.search(line)
+            if match:
+                fail("home-path",
+                     "%s:%d hardcodes %s — this repository is public, and the "
+                     "path pins the script to one machine. Use $HOME, ~ or "
+                     "os.path.expanduser, with an env override where the "
+                     "location can differ."
+                     % (rel(path), number, match.group(0)))
 
 
 # ----------------------------------------------------------------- patch roots
@@ -247,6 +282,68 @@ def check_patch_roots():
                      "operation in the file is silently discarded" % (rel(path), root))
 
 
+# -------------------------------------------------------------- harness gating
+
+# The regression harness and its launch flag are dev tooling and do not ship:
+# the csproj defines HARNESS in every configuration EXCEPT a plain Release
+# build, so `-c Release` compiles the whole thing away and a player's install
+# has no such flag in it. That switch is worth exactly as much as two
+# properties of the source, and neither is visible at a glance:
+#
+#   1. Harness code is actually behind the guard. A new harness file nobody
+#      wrapped compiles into the shipping dll and puts a launch flag in a
+#      player's install, which is the entire thing this prevents.
+#
+#   2. The guard is WHOLE-FILE, never inline. That is what makes a harness
+#      build and a shipping build differ by the presence of whole types and by
+#      nothing else — no shipping code path changes shape between the build the
+#      harness asserts against and the build that goes out. Lose it and a
+#      harness run stops being evidence about the shipped assembly, which was
+#      the whole argument for shipping the harness in the first place, back
+#      when it did.
+#
+# check-shipped-dll.py asserts the outcome on the artifact; this asserts the
+# shape of the source, which is where the mistake is actually made. Neither
+# subsumes the other: a self-contained harness file named something else
+# entirely passes rule 1 here and is caught there by the "harness" token sweep.
+def check_harness_gating():
+    for path in cs_files():
+        text = open(path, encoding="utf-8").read()
+        lines = text.split("\n")
+        guards = [i for i, line in enumerate(lines)
+                  if line.startswith("#if") and "HARNESS" in line]
+        named_harness = "Harness" in os.path.basename(path) or "/Harness/" in path
+
+        if not guards:
+            if named_harness:
+                fail("harness", "%s is harness code and carries no `#if HARNESS` "
+                     "— it would compile into the shipping dll" % rel(path))
+            elif "CommandLineArgPassed" in text:
+                fail("harness", "%s reads a launch flag outside `#if HARNESS` — "
+                     "dev-only flags are not a player's to carry" % rel(path))
+            continue
+
+        if len(guards) > 1:
+            fail("harness", "%s has %d `#if HARNESS` directives — the guard is "
+                 "whole-file, exactly one per file" % (rel(path), len(guards)))
+        first_code = next((i for i, line in enumerate(lines)
+                           if line.strip() and not line.lstrip().startswith("//")),
+                          None)
+        if first_code != guards[0]:
+            fail("harness", "%s:%d `#if HARNESS` is not the file's first code "
+                 "line — an inline guard makes the shipping build differ from "
+                 "the harness build in shape, not just in contents"
+                 % (rel(path), guards[0] + 1))
+        body = [line for line in lines if line.strip()]
+        if not body or body[-1].strip() != "#endif":
+            fail("harness", "%s does not close with `#endif` as its last line — "
+                 "the guard has to cover the whole file" % rel(path))
+        if any(line.strip() == "#else" for line in lines):
+            fail("harness", "%s has an `#else` under its HARNESS guard — that is "
+                 "shipping code living inside a harness file; move it out"
+                 % rel(path))
+
+
 def main():
     check_hot_reload()
     check_translation_keys()
@@ -254,6 +351,8 @@ def main():
     check_preview()
     check_patch_roots()
     check_private_tracking_refs()
+    check_home_paths()
+    check_harness_gating()
 
     for note in notes:
         print("note: %s" % note)

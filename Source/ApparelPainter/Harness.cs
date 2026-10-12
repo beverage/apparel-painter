@@ -1,3 +1,14 @@
+// HARNESS only — see the configuration table in ApparelPainter.csproj. The
+// regression harness and its -apparelpainter-harness launch flag are dev
+// tooling and do not ship: a Release build compiles this file out, so the flag
+// does not exist in a player's install at all. devtools/run-harness.sh asks
+// for it back with -p:Harness=true on top of Release codegen.
+//
+// The guard is whole-file, always. Never put an #if HARNESS inside a file that
+// ships — a shipping build and a harness build must differ by the presence of
+// these types and by nothing else, or a harness run stops saying anything
+// about the assembly that goes out. check-invariants.py enforces it.
+#if HARNESS
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -80,10 +91,14 @@ namespace ApparelPainter
     /// ThingOwner adds, the real RecacheGraphics) and the mod's own public
     /// surface — never a hand-rolled imitation of either.
     ///
-    /// This BODY ships in every configuration on purpose: run-harness.sh
-    /// builds plain Release, so the gate asserts against the literal dll
-    /// players install. There is no debug-menu entry at all — the launch
-    /// flag is the only door.
+    /// This SHIPS IN NO CONFIGURATION: the file is behind #if HARNESS, which
+    /// a plain Release build does not define, so a player's install carries
+    /// neither the suite nor the flag. What used to be argued here — that the
+    /// gate must assert against the literal dll players install — is now paid
+    /// by the guard being whole-file, so the build under test and the build
+    /// that goes out differ by the presence of these types and by nothing
+    /// else. There is no debug-menu entry either; the launch flag is the only
+    /// door, and run-harness.sh is what opens it.
     /// </summary>
     internal static class Harness
     {
@@ -838,6 +853,14 @@ namespace ApparelPainter
         /// have. Vanilla's randomStyle apparel (prestige marine helmet,
         /// cultist masks) short-circuits that branch, so the guard can be
         /// tested without standing up an ideoligion.
+        ///
+        /// The same choice means the fixture arrives PRE-STYLED: MakeThing
+        /// rolls randomStyle at PostMake, half the time for the helmet and
+        /// every time for the masks, and the precept setter leaves that
+        /// style alone. So it is cleared first, and "refused" means the
+        /// write left the style where it was, not that the style is null.
+        /// Asserting null made this case fail whenever the roll landed,
+        /// while the gate itself was refusing correctly.
         /// </summary>
         internal static void CaseStylePrecept()
         {
@@ -858,11 +881,17 @@ namespace ApparelPainter
             }
 
             Thing item = ThingMaker.MakeThing(def);
+            // Clear the PostMake roll. Without it the target below can equal
+            // the rolled style, and SetStyle returns false for a no-change
+            // write even with a broken gate, so that refusal would prove
+            // nothing about the gate.
+            StyleForcer.SetStyle(item, null);
             bool offeredBefore = StyleForcer.CanRestyle(item);
             item.StyleSourcePrecept = new Precept_ThingStyle();
             bool offeredAfter = StyleForcer.CanRestyle(item);
+            ThingStyleDef before = item.StyleDef;
             bool writeRefused = !StyleForcer.SetStyle(item, StyleIndex.For(def)[0].Style)
-                && item.StyleDef == null;
+                && item.StyleDef == before;
 
             Check(offeredBefore && !offeredAfter && writeRefused, "style.guardsPrecept",
                 $"{def.defName}: offered before={offeredBefore} after={offeredAfter}, "
@@ -973,3 +1002,4 @@ namespace ApparelPainter
         }
     }
 }
+#endif

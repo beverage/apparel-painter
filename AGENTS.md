@@ -47,9 +47,17 @@ updates), tab injection across the loaded modlist, the ColorForcer warts,
 the stand's graphic-cache bake + recache, the picker's headless
 preview/cancel/accept state machine, floor resolution across vanilla and
 Dubs paint (including Dubs' unscribed-alpha reload wart), parse table,
-layout-mirror consistency, and FloatMenu ordering. The harness BODY ships
-in every configuration so the gate asserts the literal dll players install;
-the launch flag is its only door — there is no debug-menu entry.
+layout-mirror consistency, and FloatMenu ordering. The launch flag is its
+only door — there is no debug-menu entry.
+
+**The harness and `-apparelpainter-harness` ship in NO configuration.** They
+sit behind `#if HARNESS`, which every configuration except a plain
+`-c Release` defines; `run-harness.sh` asks for them with `-p:Harness=true`
+and sweeps `Assemblies/` back to the shipping dll when it finishes. **The
+guard is whole-file, always** — never write `#if HARNESS` inside a file that
+ships, because the point is that a harness build and a shipping build differ
+by the presence of whole types and by nothing else. `check-invariants.py`
+enforces the guard's shape, `check-shipped-dll.py` the absence in the dll.
 
 UI FEEL is still verified by eye in game (drag strip, overlays landing on
 the base's pixels, targeting affordances) — the harness proves state, not
@@ -202,7 +210,7 @@ script does this itself.
 | `ITab_ApparelPainter.cs` | the Paint tab — rows, swatches, eyedropper mode, whole-building actions, the canonical display sort |
 | `ContainerAdapter.cs` | the adapter seam — stand / Armor Racks / generic-storage adapters: listing, refresh, spawned-ness, the tab-visibility gate |
 | `AsfInterop.cs` | reflection poke of ASF's render cache (`SetAllPrintDatasDirty`) — the fourth bake site; present-only, degrades silently |
-| `Harness.cs` | the regression suite + its flag-gated boot (`-apparelpainter-harness`); body ships in every configuration |
+| `Harness.cs` | the regression suite + its flag-gated boot (`-apparelpainter-harness`); `#if HARNESS`, so it ships in no configuration |
 | `Dialog_StandColorPicker.cs` | picker subclass — drag strip, live preview on commit, direct input, snapshot revert |
 | `ColorForcer.cs` | comp-wart-safe colour writes, natural colour, wearer dirtying |
 | `StyleIndex.cs` | ThingDef → its styles, from every StyleCategoryDef plus each def's own `randomStyle`; the cycle order and the menu names |
