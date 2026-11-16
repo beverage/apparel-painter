@@ -56,7 +56,7 @@ jobs:
         shell: bash
         run: |
           python3 devtools/bbcode-preview.py media/steam-description.bbcode
-          for f in media/changelog-*.bbcode; do
+          for f in media/changelogs/changelog-*.bbcode; do
             [ -e "$f" ] || continue
             python3 devtools/bbcode-preview.py "$f"
           done
